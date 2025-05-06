@@ -1,0 +1,19 @@
+[package]
+name = "slide-flow"
+version = "0.1.8"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.91"
+askama = "0.12.1"
+clap = { version = "4.5.20", features = ["derive"] }
+colored = "2.1.0"
+either = "1.13.0"
+env_logger = "0.11.5"
+itertools = "0.14.0"
+log = "0.4.22"
+regex = "1.11.1"
+serde = { version = "1.0.213", features = ["derive"] }
+tokio = { version = "1.43.0", features = ["full", "process", "sync"] }
+toml = "0.8.19"
+uuid = { version = "1.11.0", features = ["v4"] }
