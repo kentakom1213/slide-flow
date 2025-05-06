@@ -1,4 +1,4 @@
-//! テンプレートを処理する
+//! Template module
 
 use askama::Template;
 

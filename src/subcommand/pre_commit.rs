@@ -1,4 +1,4 @@
-//! pre-commit操作を行うサブコマンド
+//! subcommand for pre-commit
 
 use std::{collections::HashSet, fs};
 
@@ -9,30 +9,30 @@ use crate::{
     template::{IndexTemplate, ReadmeTemplate},
 };
 
-/// ファイルを作成する
+/// create list of slides
 /// - index.html
 /// - README.md
 pub fn create_files(project: &Project) -> anyhow::Result<()> {
-    // スライドの設定一覧を取得
+    // get slide configurations
     let slide_configs = project.get_slide_conf_list();
 
-    // README.mdのレンダリング
+    // generate README.md
     let readme_temp = ReadmeTemplate {
         project: &project.conf,
         slides: &slide_configs,
     };
 
-    // 保存
+    // save README.md
     fs::write(project.root_dir.join("README.md"), readme_temp.render()?)?;
 
     log::info!("update: README.md");
 
-    // index.htmlのレンダリング
+    // generate index.html
     let index_temp = IndexTemplate {
         slides: &slide_configs,
     };
 
-    // 保存
+    // save index.html
     fs::write(
         project
             .root_dir
@@ -46,21 +46,21 @@ pub fn create_files(project: &Project) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// 過去のビルド情報を削除
+/// remove cache files
 ///
-/// **引数**
-/// - `project`: プロジェクト情報
+/// **input**
+/// - `project`: project information
 pub fn remove_cache(project: &Project) -> anyhow::Result<()> {
-    // 残すファイル名
+    // directories not to be removed
     let retained_files: HashSet<_> = project
         .get_slide_conf_list()
         .iter()
-        // ビルド対象のスライドは除外
+        // retain only the files that are not draft
         .filter(|conf| !conf.draft.unwrap_or(false))
         .flat_map(|conf| {
             [conf.secret.to_owned().unwrap_or(conf.name.to_owned())]
                 .into_iter()
-                // custom_pathが指定されている場合，そちらも反映
+                // If there is a custom path, it is retained as well.
                 .chain(
                     conf.custom_path
                         .as_ref()
@@ -70,22 +70,22 @@ pub fn remove_cache(project: &Project) -> anyhow::Result<()> {
         })
         .collect();
 
-    // 出力ディレクトリ以下のファイルを削除
+    // output directory
     let output_dir = project.root_dir.join(&project.conf.output_dir);
 
-    // 削除対象のディレクトリを取得
+    // get all files for removal
     let remove_files = fs::read_dir(output_dir)?
         .filter_map(|entry| entry.ok())
         .map(|entry| entry.path())
         .filter_map(|path| {
             let stem = path.file_stem()?.to_str()?;
-            // 含まれないファイルを削除対象とする
+            // if the file is not in the retained files, it should be removed
             (!retained_files.contains(stem)).then_some(path)
         });
 
-    // 削除対象のファイルを削除
+    // remove files
     for file in remove_files {
-        // 削除
+        // remove
         let remove_result = if file.is_dir() {
             fs::remove_dir_all(&file)
         } else {

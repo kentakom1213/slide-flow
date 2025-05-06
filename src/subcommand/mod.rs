@@ -1,5 +1,5 @@
+pub mod add;
 pub mod build;
 pub mod index;
-pub mod new;
+pub mod init;
 pub mod pre_commit;
-pub mod util;

@@ -8,27 +8,27 @@ use crate::{
     slide::Slide,
 };
 
-/// プロジェクトの情報
+/// project information
 #[derive(Debug)]
 pub struct Project {
-    /// `config.toml`が配置されているディレクトリ
+    /// directory stores `config.toml`
     pub root_dir: PathBuf,
-    /// 設定
+    /// project configuration
     pub conf: ProjectConf,
-    /// スライド一覧
+    /// list of slides
     pub slides: Vec<Slide>,
 }
 
 impl Project {
-    /// プロジェクトの情報を取得する
+    /// create a new project
     pub fn get(root_dir: PathBuf) -> anyhow::Result<Self> {
-        // プロジェクトの設定ファイルを読み込む
+        // read project configuration
         let conf_path = root_dir.join("config.toml");
         let Ok(conf_str) = std::fs::read_to_string(&conf_path) else {
             bail!("The project config file does not exist: {:?}", conf_path);
         };
         let conf: ProjectConf = toml::from_str(&conf_str)?;
-        // スライド一覧
+        // get slide list
         let slides = Self::get_slide_list(&root_dir)?;
 
         Ok(Self {
@@ -38,26 +38,26 @@ impl Project {
         })
     }
 
-    /// スライド一覧を取得する
+    /// get slide list
     fn get_slide_list(root_dir: &PathBuf) -> anyhow::Result<Vec<Slide>> {
-        // 各ファイルに対して操作を行う
+        // get all directories in `src` directory
         let slides = fs::read_dir(root_dir.join("src"))?
             .filter_map(|e| e.ok())
             .filter_map(|dir| Self::get_slide_inner(&root_dir, &dir.path()).ok())
-            // 名前順にソート
+            // sort by directory name
             .sorted_by(|a, b| a.dir.cmp(&b.dir))
             .collect::<Vec<_>>();
 
         Ok(slides)
     }
 
-    /// スライドのディレクトリを取得する
+    /// get slide list
     fn get_slide_inner(root_dir: &PathBuf, dir: &PathBuf) -> anyhow::Result<Slide> {
-        // ディレクトリ
+        // directory name
         let dir = root_dir.join(&dir);
-        // プロジェクトの設定ファイルを読み込む
+        // path to config file
         let conf_path = dir.join("slide.toml");
-        // スライドの設定ファイルを読み込む
+        // read config file
         let Ok(conf_str) = std::fs::read_to_string(&conf_path) else {
             bail!("The project config file does not exist: {:?}", conf_path);
         };
@@ -66,12 +66,12 @@ impl Project {
         Ok(Slide { dir, conf })
     }
 
-    /// スライドの設定ファイル一覧を取得する
+    /// get config files for all slides
     pub fn get_slide_conf_list(&self) -> Vec<SlideConf> {
         self.slides.iter().map(|slide| slide.conf.clone()).collect()
     }
 
-    /// 特定のスライドを取得する
+    /// get specific slide
     pub fn get_slide(&self, dir: &PathBuf) -> anyhow::Result<Slide> {
         Self::get_slide_inner(&self.root_dir, dir)
     }

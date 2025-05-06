@@ -1,10 +1,10 @@
-//! コマンドパーサー
+//! parser of command line arguments
 
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 
-/// コマンドのパーサー
+/// command line arguments
 #[derive(Debug, Parser)]
 #[clap(
     name = env!("CARGO_PKG_NAME"),
@@ -20,9 +20,11 @@ pub struct Cmd {
 
 #[derive(Debug, Subcommand)]
 pub enum SubCommands {
+    /// initialize project
+    Init,
     /// create new slide
     #[clap(arg_required_else_help = true)]
-    New {
+    Add {
         /// slide name
         #[clap(required = true)]
         name: String,

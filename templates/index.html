@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>スライド一覧</title>
+    <title>Slides</title>
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -78,7 +78,7 @@
   </head>
   <body>
     <div class="container">
-      <h1>スライド一覧</h1>
+      <h1>Slides</h1>
 
       {% for slide in slides %} {% if slide.secret.is_none() &&
       !slide.draft.unwrap_or(false) %}

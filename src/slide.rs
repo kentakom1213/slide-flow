@@ -2,22 +2,22 @@ use std::path::PathBuf;
 
 use crate::config::SlideConf;
 
-/// プロジェクトの情報
+/// project information
 #[derive(Debug, Clone)]
 pub struct Slide {
-    /// `slide.toml`が配置されているディレクトリ
+    /// directory stores `slide.toml`
     pub dir: PathBuf,
-    /// 設定
+    /// slide configuration
     pub conf: SlideConf,
 }
 
 impl Slide {
-    /// スライドのパスを取得する
+    /// get path to slide file
     pub fn slide_path(&self) -> PathBuf {
         self.dir.join("slide.md")
     }
 
-    /// 画像のディレクトリを取得する
+    /// get path to images of the slide
     pub fn image_dir(&self) -> PathBuf {
         self.dir.join("images")
     }

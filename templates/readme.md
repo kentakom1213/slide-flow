@@ -1,6 +1,6 @@
 # slides
 
-[発表スライド一覧]({{ project.base_url }})
+[Slides List]({{ project.base_url }})
 
 | Title | Slide | PDF | Description |
 | :---- | :---: | :-: | :---------- |

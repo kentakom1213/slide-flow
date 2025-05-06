@@ -1,4 +1,4 @@
-//! 新しくスライドを作成する
+//! add new slide
 
 use std::fs;
 
@@ -6,27 +6,27 @@ use anyhow::bail;
 
 use crate::{config::SlideConf, project::Project};
 
-pub fn new(project: &Project, name: String, secret: bool, draft: bool) -> anyhow::Result<()> {
-    // スライドのディレクトリ
+pub fn add(project: &Project, name: String, secret: bool, draft: bool) -> anyhow::Result<()> {
+    // directory name
     let slides_dir = project.root_dir.join("src").join(&name);
 
     if slides_dir.exists() {
         bail!("The slide already exists: {:?}", slides_dir);
     }
 
-    // ディレクトリの作成
+    // make directory
     fs::create_dir(&slides_dir)?;
 
-    // 画像ディレクトリの作成
+    // create images directory
     let images_dir = slides_dir.join("images");
     fs::create_dir(&images_dir)?;
     fs::write(images_dir.join(".gitkeep"), "")?;
 
-    // スライドの作成
+    // make slide file
     let slide_path = slides_dir.join("slide.md");
     fs::write(&slide_path, &project.conf.template.slide)?;
 
-    // 設定ファイルの作成
+    // make config file
     let conf = SlideConf {
         name,
         version: 1,

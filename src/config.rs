@@ -1,60 +1,61 @@
-//! 設定ファイル
+//! configration
 
 use serde::{Deserialize, Serialize};
 
-/// プロジェクトの設定ファイル
+/// configuration for project
 #[derive(Debug, Deserialize)]
 pub struct ProjectConf {
-    /// プロジェクトの名前
+    /// name of the project
     pub name: String,
-    /// 著者名
+    /// author of the project
     pub author: String,
-    /// BASE_URL
+    /// Base URL for the project
     pub base_url: String,
-    /// 出力ディレクトリ
+    /// output directory
     pub output_dir: String,
-    /// テンプレートの設定
+    /// template configuration
     pub template: TemplateConf,
-    /// ビルドの設定
+    /// build configuration
     pub build: BuildConf,
 }
 
-/// テンプレートの設定
+/// template configuration
 #[derive(Debug, Deserialize)]
 pub struct TemplateConf {
-    /// スライドのテンプレート
+    /// template for slide
     pub slide: String,
-    /// インデックスページのテンプレート
+    /// template for index
     pub index: String,
-    /// スライドの末尾につける文字列
+    /// suffix for slide
     pub suffix: String,
 }
 
-/// ビルド用の設定
+/// build configuration
 #[derive(Debug, Deserialize)]
 pub struct BuildConf {
-    /// テーマのディレクトリ
+    /// theme directory
     pub theme_dir: String,
-    /// `marp`の実行ファイル
+    /// binary for marp
     pub marp_binary: String,
 }
 
-/// スライドの設定ファイル
+/// configuration for slide
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SlideConf {
-    /// スライドの名前
+    /// name of the slide
     pub name: String,
-    /// スライドのバージョン
+    /// version of the slide
     pub version: u8,
-    /// 限定公開の場合のUUID
+    /// UUID (when secret slide)
     pub secret: Option<String>,
-    /// スライドのパス
+    /// custom path for slide
     pub custom_path: Option<Vec<String>>,
-    /// 公開するか
+    /// draft flag
+    /// - if true, the slide is not published
     pub draft: Option<bool>,
-    /// 解説
+    /// description of the slide
     pub description: Option<String>,
-    /// スライドの見出しの区切り文字
+    /// prefix of the title
     pub title_prefix: Option<String>,
 }
 

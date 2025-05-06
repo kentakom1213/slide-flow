@@ -1,4 +1,4 @@
-//! スライドのインデックスを作成する
+//! put index to slide
 
 use std::fs;
 
@@ -7,25 +7,25 @@ use regex::Regex;
 
 use crate::slide::Slide;
 
-/// スライドにインデックスを付ける
+/// put index to slide and return the table of contents
 pub fn put_index(slide: &Slide) -> anyhow::Result<String> {
-    // Markdownファイルのパス
+    // path to slide
     let slide_path = slide.slide_path();
 
-    // スライドを読み込み，行ごとに分割
+    // read lines of slide file
     let Ok(mut lines) =
         fs::read_to_string(&slide_path).map(|s| s.lines().map(String::from).collect::<Vec<_>>())
     else {
         bail!("The slide file does not exist: {:?}", slide_path);
     };
 
-    // 見出しの区切り文字
+    // prefix of slide title
     let title_prefix: &str = slide.conf.title_prefix.as_deref().unwrap_or("# ");
 
-    // 番号を表す正規表現
+    // regex for slide number
     let slide_number = Regex::new(r"\(\d+/\d+\)$").unwrap();
 
-    // レベル1の見出しを取得
+    // get slide titles
     let mut toc = String::new();
 
     let mut titles = lines
@@ -36,7 +36,7 @@ pub fn put_index(slide: &Slide) -> anyhow::Result<String> {
             let title = slide_number.replace(&line, "").trim().to_string();
             (i, title)
         })
-        // ランレングス圧縮
+        // run length encoding
         .fold(vec![], |mut acc: Vec<(Vec<usize>, String)>, (i, title)| {
             if let Some((idxs, last_title)) = acc.last_mut() {
                 if title == *last_title {
@@ -50,9 +50,9 @@ pub fn put_index(slide: &Slide) -> anyhow::Result<String> {
             acc
         })
         .into_iter()
-        // インデックスとタイトルのペアにする
+        // make pair of slide number and title
         .flat_map(|(idxs, title)| {
-            // 目次に追加
+            // add to table of contents
             toc.push_str(&format!(
                 "1. {}\n",
                 title.trim_start_matches(title_prefix).trim()
@@ -74,7 +74,7 @@ pub fn put_index(slide: &Slide) -> anyhow::Result<String> {
         })
         .peekable();
 
-    // 書き換え
+    // put slide number
     lines.iter_mut().enumerate().for_each(|(i, line)| {
         if titles.peek().is_some_and(|(l, _)| *l == i) {
             let (_, title) = titles.next().unwrap();
@@ -84,11 +84,11 @@ pub fn put_index(slide: &Slide) -> anyhow::Result<String> {
 
     lines.push(String::new());
 
-    // 書き込み
+    // write for file
     let Ok(_) = fs::write(&slide_path, lines.join("\n")) else {
         bail!("Failed to write the slide file: {:?}", slide_path);
     };
 
-    // 目次を返す
+    // output toc
     Ok(toc)
 }

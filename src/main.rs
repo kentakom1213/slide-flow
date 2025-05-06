@@ -2,13 +2,13 @@ use clap::Parser;
 use slide_flow::{
     parser::{
         Cmd,
-        SubCommands::{Build, Index, New, PreCommit},
+        SubCommands::{Add, Build, Index, Init, PreCommit},
     },
     project::Project,
     subcommand::{
+        add::add,
         build::{build, build_html_commands, build_pdf_commands, copy_images_html},
         index::put_index,
-        new::new,
         pre_commit::{create_files, remove_cache},
     },
 };
@@ -16,37 +16,36 @@ use std::io::Write;
 
 fn init_logger() {
     env_logger::Builder::new()
-        .format(|buf, record| {
-            writeln!(buf, "[{}] {}", record.level(), record.args()) // ログレベルとメッセージのみ表示
-        })
+        .format(|buf, record| writeln!(buf, "[{}] {}", record.level(), record.args()))
         .filter(None, log::LevelFilter::Trace)
         .init();
 }
 
 fn runner() -> anyhow::Result<()> {
-    // ロガーの初期化
+    // initialize logger
     init_logger();
 
-    // カレントディレクトリの取得
+    // get current directory
     let root_dir = std::env::current_dir()?;
 
-    // コマンドのパース
+    // parse command line arguments
     let parser = Cmd::parse();
 
-    // プロジェクトの情報を取得
+    // get project information
     let project = Project::get(root_dir)?;
 
-    // コマンドの実行
+    // run subcommand
     match parser.subcommand {
-        New {
+        Init => Ok(()),
+        Add {
             name,
             secret,
             draft,
-        } => new(&project, name, secret, draft),
+        } => add(&project, name, secret, draft),
         PreCommit => {
-            // キャッシュを削除
+            // remove cache
             remove_cache(&project)?;
-            // スライドの一覧を生成
+            // create files
             create_files(&project)
         }
         Index { dir, quiet } => {
@@ -73,7 +72,7 @@ fn runner() -> anyhow::Result<()> {
             directories,
             concurrent,
         } => {
-            // コマンド群の生成
+            // generate build commands
             let mut cmds = vec![];
 
             for dir in directories {
@@ -85,7 +84,7 @@ fn runner() -> anyhow::Result<()> {
                 let build_html_cmd = build_html_commands(&project, &target_slide);
                 let build_pdf_cmd = build_pdf_commands(&project, &target_slide);
 
-                // 画像ファイルのコピー
+                // copy images
                 if let Err(e) = copy_images_html(&project, &target_slide) {
                     log::error!("Failed to copy images: {:?}", e);
                     continue;
@@ -103,10 +102,10 @@ fn runner() -> anyhow::Result<()> {
 }
 
 fn main() {
-    // メイン処理
+    // main function
     let res = runner();
 
-    // エラー処理
+    // error handling
     if let Err(e) = res {
         eprintln!("{e}");
         std::process::exit(1);

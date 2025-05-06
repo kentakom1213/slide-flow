@@ -1,4 +1,4 @@
-//! ローカルでビルドを行う
+//! build slides locally
 
 use std::{path::PathBuf, sync::Arc};
 
@@ -7,36 +7,34 @@ use tokio::{process::Command, runtime::Runtime, sync::Semaphore};
 
 use crate::{config::SlideConf, project::Project, slide::Slide};
 
-use super::util::copy_images;
-
-/// ビルドコマンドのとその情報を保持する構造体
+/// build commands and their information
 pub enum BuildCommand {
-    /// PDFのビルドコマンド
+    /// build command for PDF
     PDF {
-        /// ビルド対象のディレクトリ
+        /// target directory
         dir: PathBuf,
-        /// ビルドコマンド
+        /// build command
         command: Command,
-        /// 設定
+        /// slide configuration
         conf: SlideConf,
     },
-    /// HTMLのビルドコマンド
+    /// build command for HTML
     HTML {
-        /// ビルド対象のディレクトリ
+        /// target directory
         dir: PathBuf,
-        /// ビルドコマンド
+        /// build command
         command: Command,
-        /// 設定
+        /// slide configuration
         conf: SlideConf,
     },
 }
 
-/// ビルドコマンドを実行する
+/// run build commands
 pub fn build<'a>(commands: impl Iterator<Item = BuildCommand>, max_concurrent: usize) {
-    // Tokio ランタイムを手動で作成
+    // initialize tokio runtime
     let runtime = Runtime::new().unwrap();
 
-    // ビルドコマンドを実行
+    // run build commands parallelly
     runtime.block_on(async {
         let semaphore = Arc::new(Semaphore::new(max_concurrent));
 
@@ -76,7 +74,7 @@ pub fn build<'a>(commands: impl Iterator<Item = BuildCommand>, max_concurrent: u
     });
 }
 
-/// 出力ファイル名のstemを生成
+/// generate file stems for output files
 fn make_file_stems(slide: &Slide) -> Vec<String> {
     let mut res = slide.conf.custom_path.clone().unwrap_or_default();
 
@@ -89,23 +87,23 @@ fn make_file_stems(slide: &Slide) -> Vec<String> {
     res
 }
 
-/// PDFファイルのビルドを行うコマンドを生成する
+/// generate build commands for PDF
 pub fn build_pdf_commands<'a>(
     project: &'a Project,
     slide: &'a Slide,
 ) -> impl Iterator<Item = BuildCommand> + 'a {
-    // コマンドを生成するクロージャ
+    // closure to generate build command
     let make_commmand = move |output_stem: String| {
         let mut cmd = Command::new(&project.conf.build.marp_binary);
 
         cmd
-            // テーマの指定
+            // specify theme
             .arg("--theme-set")
             .arg(&project.conf.build.theme_dir)
-            // htmlを有効化
+            // enable html
             .arg("--html")
             .arg("true")
-            // 出力先の指定
+            // output name
             .arg("-o")
             .arg(
                 project
@@ -114,28 +112,28 @@ pub fn build_pdf_commands<'a>(
                     .join(output_stem)
                     .with_extension("pdf"),
             )
-            // PDFの出力
+            // output format
             .arg("--pdf")
-            // ディレクトリの指定
-            .arg("--input-dif")
+            // input directory
+            .arg("--input-dir")
             .arg(&slide.dir)
             .arg("--allow-local-files")
-            // タイトル
+            // title
             .arg("--title")
             .arg(&slide.conf.name)
-            // 著者
+            // author
             .arg("--author")
             .arg(&project.conf.author)
-            // 説明
+            // description
             .arg("--description")
             .arg(&slide.conf.description.clone().unwrap_or_else(String::new))
-            // 入力となるマークダウンファイル
+            // input markdown file
             .arg(slide.dir.join("slide.md"));
 
         cmd
     };
 
-    // 出力ファイル名を生成
+    // generate output file names
     let output_files = make_file_stems(&slide);
 
     output_files.into_iter().map(move |stem| BuildCommand::PDF {
@@ -145,24 +143,24 @@ pub fn build_pdf_commands<'a>(
     })
 }
 
-/// HTMLファイルのビルドを行うコマンドを生成する
+/// generate build commands for HTML
 pub fn build_html_commands<'a>(
     project: &'a Project,
     slide: &'a Slide,
 ) -> impl Iterator<Item = BuildCommand> + 'a {
-    // コマンドを生成するクロージャ
+    // closure to generate build command
     let make_commmand = move |output_stem: String| {
-        // ビルドを行うコマンド
+        // create command
         let mut cmd = Command::new(&project.conf.build.marp_binary);
 
         cmd
-            // テーマの指定
+            // specify theme
             .arg("--theme-set")
             .arg(&project.conf.build.theme_dir)
-            // htmlを有効化
+            // enable html
             .arg("--html")
             .arg("true")
-            // 出力先の指定
+            // output name
             .arg("-o")
             .arg(
                 project
@@ -171,22 +169,22 @@ pub fn build_html_commands<'a>(
                     .join(&output_stem)
                     .join("index.html"),
             )
-            // タイトル
+            // title
             .arg("--title")
             .arg(&slide.conf.name)
-            // 著者
+            // author
             .arg("--author")
             .arg(&project.conf.author)
-            // 説明
+            // description
             .arg("--description")
             .arg(&slide.conf.description.clone().unwrap_or_else(String::new))
-            // 入力となるマークダウンファイル
+            // input markdown file
             .arg(slide.dir.join("slide.md"));
 
         cmd
     };
 
-    // 出力ファイル名を生成
+    // generate output file names
     let output_files = make_file_stems(&slide);
 
     output_files
@@ -198,7 +196,7 @@ pub fn build_html_commands<'a>(
         })
 }
 
-/// HTMLのために画像をコピー
+/// copy images to output directory
 pub fn copy_images_html<'a>(project: &'a Project, slide: &'a Slide) -> anyhow::Result<()> {
     let output_files = make_file_stems(slide);
 
@@ -209,14 +207,45 @@ pub fn copy_images_html<'a>(project: &'a Project, slide: &'a Slide) -> anyhow::R
             .join(&stem)
             .join("images");
 
-        // ディレクトリの作成（存在しない場合，クリア）
+        // create target directory
         if target_images_dir.exists() {
             std::fs::remove_dir_all(&target_images_dir)?;
         }
         std::fs::create_dir_all(&target_images_dir)?;
 
-        // 画像のコピー
+        // copy images
         copy_images(&slide, &target_images_dir)?;
+    }
+
+    Ok(())
+}
+
+/// copy images
+fn copy_images(slide: &Slide, target_images_dir: &PathBuf) -> anyhow::Result<()> {
+    let slide_images_dir = slide.image_dir();
+
+    // if the slide does not have images, return
+    if !slide_images_dir.exists() {
+        return Ok(());
+    }
+
+    // copy image files
+    let images = std::fs::read_dir(&slide_images_dir)?;
+
+    for image in images.filter_map(|e| e.ok()) {
+        let path = image.path();
+        let file_name = path.file_name().unwrap();
+        // skip hidden files
+        if file_name.to_string_lossy().starts_with(".") {
+            continue;
+        }
+
+        let save_path = target_images_dir.join(file_name);
+        if save_path.exists() {
+            anyhow::bail!("The image file already exists: {:?}", save_path);
+        }
+
+        std::fs::copy(&path, &save_path)?;
     }
 
     Ok(())
