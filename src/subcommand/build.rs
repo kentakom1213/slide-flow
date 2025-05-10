@@ -114,9 +114,6 @@ pub fn build_pdf_commands<'a>(
             )
             // output format
             .arg("--pdf")
-            // input directory
-            .arg("--input-dir")
-            .arg(&slide.dir)
             .arg("--allow-local-files")
             // title
             .arg("--title")
@@ -127,8 +124,9 @@ pub fn build_pdf_commands<'a>(
             // description
             .arg("--description")
             .arg(&slide.conf.description.clone().unwrap_or_else(String::new))
-            // input markdown file
-            .arg(slide.dir.join("slide.md"));
+            // input directory
+            .arg("--input-dir")
+            .arg(&slide.dir);
 
         cmd
     };
