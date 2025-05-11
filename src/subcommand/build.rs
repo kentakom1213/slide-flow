@@ -124,9 +124,8 @@ pub fn build_pdf_commands<'a>(
             // description
             .arg("--description")
             .arg(&slide.conf.description.clone().unwrap_or_else(String::new))
-            // input directory
-            .arg("--input-dir")
-            .arg(&slide.dir);
+            // input markdown file
+            .arg(slide.dir.join("slide.md"));
 
         cmd
     };
