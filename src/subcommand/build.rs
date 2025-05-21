@@ -1,6 +1,9 @@
 //! build slides locally
 
-use std::{path::PathBuf, sync::Arc};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use colored::Colorize;
 use tokio::{process::Command, runtime::Runtime, sync::Semaphore};
@@ -30,7 +33,7 @@ pub enum BuildCommand {
 }
 
 /// run build commands
-pub fn build<'a>(commands: impl Iterator<Item = BuildCommand>, max_concurrent: usize) {
+pub fn build(commands: impl Iterator<Item = BuildCommand>, max_concurrent: usize) {
     // initialize tokio runtime
     let runtime = Runtime::new().unwrap();
 
@@ -123,7 +126,7 @@ pub fn build_pdf_commands<'a>(
             .arg(&project.conf.author)
             // description
             .arg("--description")
-            .arg(&slide.conf.description.clone().unwrap_or_else(String::new))
+            .arg(slide.conf.description.clone().unwrap_or_default())
             // input markdown file
             .arg(slide.dir.join("slide.md"));
 
@@ -131,7 +134,7 @@ pub fn build_pdf_commands<'a>(
     };
 
     // generate output file names
-    let output_files = make_file_stems(&slide);
+    let output_files = make_file_stems(slide);
 
     output_files.into_iter().map(move |stem| BuildCommand::PDF {
         dir: slide.dir.clone(),
@@ -174,7 +177,7 @@ pub fn build_html_commands<'a>(
             .arg(&project.conf.author)
             // description
             .arg("--description")
-            .arg(&slide.conf.description.clone().unwrap_or_else(String::new))
+            .arg(slide.conf.description.clone().unwrap_or_default())
             // input markdown file
             .arg(slide.dir.join("slide.md"));
 
@@ -182,7 +185,7 @@ pub fn build_html_commands<'a>(
     };
 
     // generate output file names
-    let output_files = make_file_stems(&slide);
+    let output_files = make_file_stems(slide);
 
     output_files
         .into_iter()
@@ -211,14 +214,14 @@ pub fn copy_images_html<'a>(project: &'a Project, slide: &'a Slide) -> anyhow::R
         std::fs::create_dir_all(&target_images_dir)?;
 
         // copy images
-        copy_images(&slide, &target_images_dir)?;
+        copy_images(slide, &target_images_dir)?;
     }
 
     Ok(())
 }
 
 /// copy images
-fn copy_images(slide: &Slide, target_images_dir: &PathBuf) -> anyhow::Result<()> {
+fn copy_images(slide: &Slide, target_images_dir: &Path) -> anyhow::Result<()> {
     let slide_images_dir = slide.image_dir();
 
     // if the slide does not have images, return

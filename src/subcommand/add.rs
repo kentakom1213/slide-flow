@@ -32,7 +32,7 @@ pub fn add(project: &Project, name: String, secret: bool, draft: bool) -> anyhow
         version: 1,
         secret: secret.then(|| uuid::Uuid::new_v4().to_string()),
         custom_path: Some(vec![]),
-        draft: draft.then(|| true),
+        draft: draft.then_some(true),
         description: Some(String::new()),
         title_prefix: None,
     };

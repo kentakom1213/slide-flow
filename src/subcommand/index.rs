@@ -33,7 +33,7 @@ pub fn put_index(slide: &Slide) -> anyhow::Result<String> {
         .enumerate()
         .filter(|&(_, line)| line.starts_with(title_prefix))
         .map(|(i, line)| {
-            let title = slide_number.replace(&line, "").trim().to_string();
+            let title = slide_number.replace(line, "").trim().to_string();
             (i, title)
         })
         // run length encoding

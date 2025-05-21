@@ -78,8 +78,10 @@ fn runner() -> anyhow::Result<()> {
                     .slides
                     .iter()
                     .inspect(|slide| log::info!("Put index to slide: {:?}", slide.dir))
-                    .map(|slide| put_index(slide).map(|_| ()))
-                    .collect::<anyhow::Result<()>>()
+                    .try_for_each(|slide| {
+                        let _toc = put_index(slide)?;
+                        Ok(())
+                    })
             }
         }
         Build {

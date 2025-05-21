@@ -1,4 +1,7 @@
-use std::{fs, path::PathBuf};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 use anyhow::bail;
 use itertools::Itertools;
@@ -39,11 +42,11 @@ impl Project {
     }
 
     /// get slide list
-    fn get_slide_list(root_dir: &PathBuf) -> anyhow::Result<Vec<Slide>> {
+    fn get_slide_list(root_dir: &Path) -> anyhow::Result<Vec<Slide>> {
         // get all directories in `src` directory
         let slides = fs::read_dir(root_dir.join("src"))?
             .filter_map(|e| e.ok())
-            .filter_map(|dir| Self::get_slide_inner(&root_dir, &dir.path()).ok())
+            .filter_map(|dir| Self::get_slide_inner(root_dir, &dir.path()).ok())
             // sort by directory name
             .sorted_by(|a, b| a.dir.cmp(&b.dir))
             .collect::<Vec<_>>();
@@ -52,9 +55,9 @@ impl Project {
     }
 
     /// get slide list
-    fn get_slide_inner(root_dir: &PathBuf, dir: &PathBuf) -> anyhow::Result<Slide> {
+    fn get_slide_inner(root_dir: &Path, dir: &Path) -> anyhow::Result<Slide> {
         // directory name
-        let dir = root_dir.join(&dir);
+        let dir = root_dir.join(dir);
         // path to config file
         let conf_path = dir.join("slide.toml");
         // read config file
@@ -72,7 +75,7 @@ impl Project {
     }
 
     /// get specific slide
-    pub fn get_slide(&self, dir: &PathBuf) -> anyhow::Result<Slide> {
+    pub fn get_slide(&self, dir: &Path) -> anyhow::Result<Slide> {
         Self::get_slide_inner(&self.root_dir, dir)
     }
 }
