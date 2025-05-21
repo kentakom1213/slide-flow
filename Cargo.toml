@@ -1,7 +1,16 @@
 [package]
 name = "slide-flow"
-version = "0.1.9"
+version = "0.1.0"
+description = "A CLI tool for managing Marp markdown slide presentations."
+authors = ["Kenta Komoto"]
+license = "MIT"
 edition = "2021"
+homepage = "https://github.com/kentakom1213/slide-flow"
+repository = "https://github.com/kentakom1213/slide-flow"
+keywords = ["marp", "slides", "cli", "presentation"]
+categories = ["command-line-utilities", "development-tools"]
+readme = "README.md"
+
 
 [dependencies]
 anyhow = "1.0.91"
