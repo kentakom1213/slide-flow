@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 /// configuration for project
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ProjectConf {
     /// name of the project
     pub name: String,
@@ -19,8 +19,22 @@ pub struct ProjectConf {
     pub build: BuildConf,
 }
 
+impl Default for ProjectConf {
+    /// Provides a default configuration for a new project.
+    fn default() -> Self {
+        ProjectConf {
+            name: "my-slide-project".to_string(), // Default project name
+            author: "Your Name".to_string(),      // Default author name
+            base_url: "https://example.com/".to_string(),
+            output_dir: "output".to_string(),
+            template: TemplateConf::default(),
+            build: BuildConf::default(),
+        }
+    }
+}
+
 /// template configuration
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TemplateConf {
     /// template for slide
     pub slide: String,
@@ -30,13 +44,34 @@ pub struct TemplateConf {
     pub suffix: String,
 }
 
+impl Default for TemplateConf {
+    /// Provides default template configurations.
+    fn default() -> Self {
+        TemplateConf {
+            slide: "".to_string(),
+            index: "".to_string(),
+            suffix: "".to_string(),
+        }
+    }
+}
+
 /// build configuration
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BuildConf {
     /// theme directory
     pub theme_dir: String,
     /// binary for marp
     pub marp_binary: String,
+}
+
+impl Default for BuildConf {
+    /// Provides default build configurations.
+    fn default() -> Self {
+        BuildConf {
+            theme_dir: ".marp/themes".to_string(),
+            marp_binary: "marp".to_string(),
+        }
+    }
 }
 
 /// configuration for slide

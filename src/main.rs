@@ -9,6 +9,7 @@ use slide_flow::{
         add::add,
         build::{build, build_html_commands, build_pdf_commands, copy_images_html},
         index::put_index,
+        init::init,
         pre_commit::{create_files, remove_cache},
     },
 };
@@ -32,11 +33,24 @@ fn runner() -> anyhow::Result<()> {
     let parser = Cmd::parse();
 
     // get project information
-    let project = Project::get(root_dir)?;
+    let project = Project::get(root_dir.clone());
+
+    if matches!(parser.subcommand, Init) {
+        // if init command, check if the project already exists
+        if project.is_ok() {
+            log::error!("The project already exists.");
+        } else {
+            // if not, create a new project
+            init(&root_dir)?;
+        }
+        return Ok(());
+    }
+
+    let project = project?;
 
     // run subcommand
     match parser.subcommand {
-        Init => Ok(()),
+        Init => unreachable!(),
         Add {
             name,
             secret,
