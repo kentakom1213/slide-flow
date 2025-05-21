@@ -23,6 +23,7 @@ itertools = "0.14.0"
 log = "0.4.22"
 regex = "1.11.1"
 serde = { version = "1.0.213", features = ["derive"] }
+tempfile = "3.20.0"
 tokio = { version = "1.43.0", features = ["full", "process", "sync"] }
 toml = "0.8.19"
 uuid = { version = "1.11.0", features = ["v4"] }
