@@ -1,6 +1,0 @@
-#!/bin/bash
-
-cargo build -r
-
-cp target/release/slide-flow $HOME/.local/bin
-
