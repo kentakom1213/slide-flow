@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::Path;
 
 use crate::config::ProjectConf;
 
@@ -8,7 +8,7 @@ use crate::config::ProjectConf;
 ///
 /// # Arguments
 /// * `root_dir` - The path to the root directory where the project should be initialized.
-pub fn init(root_dir: &PathBuf) -> anyhow::Result<()> {
+pub fn init(root_dir: &Path) -> anyhow::Result<()> {
     log::info!(
         "Initializing new slide project at: {}",
         root_dir.to_string_lossy()
