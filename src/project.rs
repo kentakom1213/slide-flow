@@ -28,7 +28,10 @@ impl Project {
         // read project configuration
         let conf_path = root_dir.join("config.toml");
         let Ok(conf_str) = std::fs::read_to_string(&conf_path) else {
-            bail!("The project config file does not exist: {:?}", conf_path);
+            bail!(
+                "The project config file does not exist: {}",
+                conf_path.to_string_lossy()
+            );
         };
         let conf: ProjectConf = toml::from_str(&conf_str)?;
         // get slide list
@@ -62,7 +65,10 @@ impl Project {
         let conf_path = dir.join("slide.toml");
         // read config file
         let Ok(conf_str) = std::fs::read_to_string(&conf_path) else {
-            bail!("The project config file does not exist: {:?}", conf_path);
+            bail!(
+                "The project config file does not exist: {}",
+                conf_path.to_string_lossy()
+            );
         };
         let conf: SlideConf = toml::from_str(&conf_str)?;
 

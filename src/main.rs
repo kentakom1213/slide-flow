@@ -77,7 +77,9 @@ fn runner() -> anyhow::Result<()> {
                 project
                     .slides
                     .iter()
-                    .inspect(|slide| log::info!("Put index to slide: {:?}", slide.dir))
+                    .inspect(|slide| {
+                        log::info!("Put index to slide: {}", slide.dir.to_string_lossy())
+                    })
                     .try_for_each(|slide| {
                         let _toc = put_index(slide)?;
                         Ok(())
@@ -93,7 +95,7 @@ fn runner() -> anyhow::Result<()> {
 
             for dir in directories {
                 let Ok(target_slide) = project.get_slide(&dir) else {
-                    log::error!("The slide does not exist: {:?}", &dir);
+                    log::error!("The slide does not exist: {}", dir.to_string_lossy());
                     continue;
                 };
 
@@ -102,7 +104,7 @@ fn runner() -> anyhow::Result<()> {
 
                 // copy images
                 if let Err(e) = copy_images_html(&project, &target_slide) {
-                    log::error!("Failed to copy images: {:?}", e);
+                    log::error!("Failed to copy images: {}", e);
                     continue;
                 }
 

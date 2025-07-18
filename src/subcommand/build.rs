@@ -60,11 +60,21 @@ pub fn build(commands: impl Iterator<Item = BuildCommand>, max_concurrent: usize
 
                     match command.output().await {
                         Ok(_) => {
-                            log::info!("build {}: {:?} ... {}", build_type, dir, "done".green());
+                            log::info!(
+                                "build {}: {} ... {}",
+                                build_type,
+                                dir.to_string_lossy(),
+                                "done".green()
+                            );
                         }
                         Err(e) => {
-                            log::error!("build {}: {:?} ... {}", build_type, dir, "failed".red());
-                            log::error!("error: {:?}", e);
+                            log::error!(
+                                "build {}: {} ... {}",
+                                build_type,
+                                dir.to_string_lossy(),
+                                "failed".red()
+                            );
+                            log::error!("error: {}", e);
                         }
                     }
                 })
@@ -242,7 +252,10 @@ fn copy_images(slide: &Slide, target_images_dir: &Path) -> anyhow::Result<()> {
 
         let save_path = target_images_dir.join(file_name);
         if save_path.exists() {
-            anyhow::bail!("The image file already exists: {:?}", save_path);
+            anyhow::bail!(
+                "The image file already exists: {}",
+                save_path.to_string_lossy()
+            );
         }
 
         std::fs::copy(&path, &save_path)?;

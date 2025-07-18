@@ -11,7 +11,7 @@ pub fn add(project: &Project, name: String, secret: bool, draft: bool) -> anyhow
     let slides_dir = project.root_dir.join("src").join(&name);
 
     if slides_dir.exists() {
-        bail!("The slide already exists: {:?}", slides_dir);
+        bail!("The slide already exists: {}", slides_dir.to_string_lossy());
     }
 
     // make directory
@@ -42,7 +42,7 @@ pub fn add(project: &Project, name: String, secret: bool, draft: bool) -> anyhow
 
     fs::write(conf_path, conf_str)?;
 
-    log::info!("Created a new slide: {:?}", slide_path);
+    log::info!("Created a new slide: {}", slide_path.to_string_lossy());
 
     Ok(())
 }

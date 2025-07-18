@@ -9,37 +9,43 @@ use crate::config::ProjectConf;
 /// # Arguments
 /// * `root_dir` - The path to the root directory where the project should be initialized.
 pub fn init(root_dir: &PathBuf) -> anyhow::Result<()> {
-    log::info!("Initializing new slide project at: {:?}", root_dir);
+    log::info!(
+        "Initializing new slide project at: {}",
+        root_dir.to_string_lossy()
+    );
 
     // Create .marp/themes directory
     let marp_themes_dir = root_dir.join(".marp").join("themes");
     if marp_themes_dir.exists() {
-        anyhow::bail!("Directory already exists: {:?}", marp_themes_dir);
+        anyhow::bail!(
+            "Directory already exists: {}",
+            marp_themes_dir.to_string_lossy()
+        );
     }
-    log::info!("Creating directory: {:?}", marp_themes_dir);
+    log::info!("Creating directory: {}", marp_themes_dir.to_string_lossy());
     fs::create_dir_all(&marp_themes_dir)?; // Create all necessary parent directories
     fs::write(marp_themes_dir.join(".gitkeep"), "")?; // Create a .gitkeep file
 
     // Create src directory
     let src_dir = root_dir.join("src");
     if src_dir.exists() {
-        anyhow::bail!("Directory already exists: {:?}", src_dir);
+        anyhow::bail!("Directory already exists: {}", src_dir.to_string_lossy());
     }
-    log::info!("Creating directory: {:?}", src_dir);
+    log::info!("Creating directory: {}", src_dir.to_string_lossy());
     fs::create_dir_all(&src_dir)?; // Create all necessary parent directories
     fs::write(src_dir.join(".gitkeep"), "")?; // Create a .gitkeep file
 
     // Create config.toml
     let config_path = root_dir.join("config.toml");
     if config_path.exists() {
-        anyhow::bail!("File already exists: {:?}", config_path);
+        anyhow::bail!("File already exists: {}", config_path.to_string_lossy());
     }
 
     // Create a default ProjectConf and serialize it to a TOML string
     let default_config = ProjectConf::default();
     let config_content = toml::to_string_pretty(&default_config)?; // Use toml::to_string_pretty for formatted output
 
-    log::info!("Creating config file: {:?}", config_path);
+    log::info!("Creating config file: {}", config_path.to_string_lossy());
     fs::write(&config_path, config_content)?; // Write the config content to the file
 
     log::info!("Project initialized successfully!");
@@ -93,8 +99,8 @@ mod test_init {
         assert_eq!(
             result.unwrap_err().to_string(),
             format!(
-                "Directory already exists: {:?}",
-                project_root.join(".marp").join("themes")
+                "Directory already exists: {}",
+                project_root.join(".marp").join("themes").to_string_lossy()
             )
         );
     }

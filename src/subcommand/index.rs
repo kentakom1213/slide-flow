@@ -16,7 +16,10 @@ pub fn put_index(slide: &Slide) -> anyhow::Result<String> {
     let Ok(mut lines) =
         fs::read_to_string(&slide_path).map(|s| s.lines().map(String::from).collect::<Vec<_>>())
     else {
-        bail!("The slide file does not exist: {:?}", slide_path);
+        bail!(
+            "The slide file does not exist: {}",
+            slide_path.to_string_lossy()
+        );
     };
 
     // prefix of slide title
@@ -86,7 +89,10 @@ pub fn put_index(slide: &Slide) -> anyhow::Result<String> {
 
     // write for file
     let Ok(_) = fs::write(&slide_path, lines.join("\n")) else {
-        bail!("Failed to write the slide file: {:?}", slide_path);
+        bail!(
+            "Failed to write the slide file: {}",
+            slide_path.to_string_lossy()
+        );
     };
 
     // output toc

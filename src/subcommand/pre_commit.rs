@@ -93,8 +93,8 @@ pub fn remove_cache(project: &Project) -> anyhow::Result<()> {
         };
 
         match remove_result {
-            Ok(_) => log::info!("remove: {:?}", file),
-            Err(e) => log::error!("failed to remove: {:?}, error: {}", file, e),
+            Ok(_) => log::info!("remove: {}", file.to_string_lossy()),
+            Err(e) => log::error!("failed to remove: {}, error: {}", file.to_string_lossy(), e),
         }
     }
 
