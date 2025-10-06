@@ -46,6 +46,11 @@ pub enum SubCommands {
         #[clap(short, long)]
         quiet: bool,
     },
+    /// modify slide bibliography
+    Bib {
+        /// slide directory
+        dir: PathBuf,
+    },
     /// build slide
     Build {
         /// path to slide directory

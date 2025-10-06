@@ -2,7 +2,7 @@ use clap::Parser;
 use slide_flow::{
     parser::{
         Cmd,
-        SubCommands::{Add, Build, Index, Init, PreCommit},
+        SubCommands::{Add, Bib, Build, Index, Init, PreCommit},
     },
     project::Project,
     subcommand::{
@@ -85,6 +85,14 @@ fn runner() -> anyhow::Result<()> {
                         Ok(())
                     })
             }
+        }
+        Bib { dir } => {
+            let target_slide = project.get_slide(&dir)?;
+            let contents = target_slide.get_contents();
+
+            println!("{:#?}", contents);
+
+            Ok(())
         }
         Build {
             directories,
