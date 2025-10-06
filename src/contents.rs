@@ -3,6 +3,8 @@
 use anyhow::bail;
 use regex::Regex;
 
+use crate::config::BibEntry;
+
 /// contents of slide
 #[derive(Debug)]
 pub struct SlideContents {
@@ -54,6 +56,24 @@ impl TryFrom<&str> for SlideContents {
 pub struct SlidePage {
     /// Contents of page
     contents: String,
+}
+
+impl SlidePage {
+    /// enumerate references in the page
+    pub fn enumerate_references<'a>(&self, bib_entries: &'a [BibEntry]) -> Vec<&'a BibEntry> {
+        let re = Regex::new(r"\[.*?\]\(#(.*?)\)").unwrap();
+
+        // collect keys from the page
+        let keys: Vec<&str> = re
+            .captures_iter(&self.contents)
+            .filter_map(|cap| cap.get(1).map(|m| m.as_str()))
+            .collect();
+
+        // find corresponding BibEntry for each key
+        keys.iter()
+            .filter_map(|&key| bib_entries.iter().find(|entry| entry.tag == key))
+            .collect()
+    }
 }
 
 #[cfg(test)]
@@ -111,5 +131,44 @@ Some content here.
 
         let result = SlideContents::try_from(s);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_enumerate_references() {
+        let bib = vec![
+            BibEntry {
+                tag: "ref1".to_string(),
+                authors: Some("Author A".to_string()),
+                title: "Title A".to_string(),
+                year: 2020,
+                venue: Some("Venue A".to_string()),
+                url: Some("https://doi.org/xxxx".to_string()),
+            },
+            BibEntry {
+                tag: "ref2".to_string(),
+                authors: Some("Author B".to_string()),
+                title: "Title B".to_string(),
+                year: 2021,
+                venue: Some("Venue B".to_string()),
+                url: Some("https://doi.org/yyyy".to_string()),
+            },
+        ];
+
+        let s = r#"---
+marp: true
+title: Sample Slide
+author: John Doe
+---
+# Slide 1
+Some content here with a reference [see this](#ref2) and another [example](#ref1).
+"#;
+
+        let slide_contents = SlideContents::try_from(s).unwrap();
+        let page = &slide_contents.pages[0];
+
+        let refs = page.enumerate_references(&bib);
+        assert_eq!(refs.len(), 2);
+        assert_eq!(refs[0].tag, "ref2");
+        assert_eq!(refs[1].tag, "ref1");
     }
 }

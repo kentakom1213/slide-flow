@@ -97,7 +97,7 @@ pub struct SlideConf {
 }
 
 /// bibliography entry
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct BibEntry {
     /// citation tag
     pub tag: String,
