@@ -91,6 +91,7 @@ fn runner() -> anyhow::Result<()> {
             let contents = target_slide.get_contents();
 
             println!("{:#?}", contents);
+            println!("{:#?}", target_slide.conf.bibliography);
 
             Ok(())
         }

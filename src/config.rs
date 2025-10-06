@@ -101,8 +101,45 @@ pub struct SlideConf {
 pub struct BibEntry {
     /// citation tag
     pub tag: String,
-    /// bibliographic information
-    pub info: String,
+    /// title of the reference
+    pub title: String,
+    /// authors of the reference
+    pub authors: Option<String>,
+    /// year of the reference
+    pub year: u16,
+    /// conference or journal name
+    pub venue: Option<String>,
+    /// URL
+    pub url: Option<String>,
+}
+
+impl BibEntry {
+    /// format bibliography entry as a string
+    pub fn format(&self) -> String {
+        let mut entry = String::new();
+
+        if let Some(authors) = &self.authors {
+            entry.push_str(authors);
+            entry.push_str(". ");
+        }
+
+        entry.push_str(&self.title);
+        entry.push_str(". ");
+
+        if let Some(venue) = &self.venue {
+            entry.push_str(venue);
+            entry.push_str(", ");
+        }
+
+        entry.push_str(&self.year.to_string());
+
+        if let Some(url) = &self.url {
+            entry.push_str(". ");
+            entry.push_str(url);
+        }
+
+        entry
+    }
 }
 
 #[cfg(test)]
@@ -160,15 +197,32 @@ mod test_config {
 
             [[bibliography]]
             tag = "tag1"
-            info = "This is bibliographic information 1."
+            authors = "Author A, Author B"
+            title = "This is bibliographic information 1"
+            year = 2021
+            venue = "Conference X"
+            url = "https://doi.org/xxxx"
 
             [[bibliography]]
             tag = "tag2"
-            info = "This is bibliographic information 2."
+            authors = "Author C"
+            title = "This is bibliographic information 2"
+            year = 2020
+            url = "https://doi.org/yyyy"
         "###;
 
         let config: SlideConf = toml::from_str(&config_example).unwrap();
 
         println!("{:#?}", config);
+
+        assert_eq!(config.bibliography.as_ref().unwrap().len(), 2);
+        assert_eq!(
+            config.bibliography.as_ref().unwrap()[0].format(),
+            "Author A, Author B. This is bibliographic information 1. Conference X, 2021. https://doi.org/xxxx"
+        );
+        assert_eq!(
+            config.bibliography.as_ref().unwrap()[1].format(),
+            "Author C. This is bibliographic information 2. 2020. https://doi.org/yyyy"
+        );
     }
 }
