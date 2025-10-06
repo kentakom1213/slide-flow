@@ -92,6 +92,17 @@ pub struct SlideConf {
     pub description: Option<String>,
     /// prefix of the title
     pub title_prefix: Option<String>,
+    /// bibliography entries
+    pub bibliography: Option<Vec<BibEntry>>,
+}
+
+/// bibliography entry
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BibEntry {
+    /// citation tag
+    pub tag: String,
+    /// bibliographic information
+    pub info: String,
 }
 
 #[cfg(test)]
@@ -130,6 +141,30 @@ mod test_config {
             draft = true
             description = "This is slide1"
             title_prefix = "##"
+        "###;
+
+        let config: SlideConf = toml::from_str(&config_example).unwrap();
+
+        println!("{:#?}", config);
+    }
+
+    #[test]
+    fn test_parse_slide_config_bibliography() {
+        let config_example = r###"
+            version = 1
+            name = "slide1"
+            path = "slide1"
+            draft = true
+            description = "This is slide1"
+            title_prefix = "##"
+
+            [[bibliography]]
+            tag = "tag1"
+            info = "This is bibliographic information 1."
+
+            [[bibliography]]
+            tag = "tag2"
+            info = "This is bibliographic information 2."
         "###;
 
         let config: SlideConf = toml::from_str(&config_example).unwrap();

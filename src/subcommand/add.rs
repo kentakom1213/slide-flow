@@ -35,6 +35,7 @@ pub fn add(project: &Project, name: String, secret: bool, draft: bool) -> anyhow
         draft: draft.then_some(true),
         description: Some(String::new()),
         title_prefix: None,
+        bibliography: Some(vec![]),
     };
 
     let conf_str = toml::to_string(&conf)?;

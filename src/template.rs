@@ -35,6 +35,7 @@ mod test_template {
                 draft: None,
                 description: None,
                 title_prefix: None,
+                bibliography: None,
             },
             SlideConf {
                 name: "title2".to_string(),
@@ -44,6 +45,7 @@ mod test_template {
                 draft: None,
                 description: None,
                 title_prefix: Some("#".to_string()),
+                bibliography: None,
             },
             SlideConf {
                 name: "title3".to_string(),
@@ -53,6 +55,7 @@ mod test_template {
                 draft: Some(true),
                 description: None,
                 title_prefix: Some("##".to_string()),
+                bibliography: None,
             },
             SlideConf {
                 name: "title4".to_string(),
@@ -62,6 +65,7 @@ mod test_template {
                 draft: Some(false),
                 description: Some("タイトル4".to_string()),
                 title_prefix: Some("###".to_string()),
+                bibliography: None,
             },
         ];
         let template = IndexTemplate { slides: &slides };
@@ -100,6 +104,7 @@ mod test_template {
                 draft: None,
                 description: None,
                 title_prefix: None,
+                bibliography: None,
             },
             SlideConf {
                 name: "title2".to_string(),
@@ -109,6 +114,7 @@ mod test_template {
                 draft: None,
                 description: None,
                 title_prefix: Some("#".to_string()),
+                bibliography: None,
             },
             SlideConf {
                 name: "title3".to_string(),
@@ -118,6 +124,7 @@ mod test_template {
                 draft: Some(true),
                 description: None,
                 title_prefix: Some("##".to_string()),
+                bibliography: None,
             },
             SlideConf {
                 name: "title4".to_string(),
@@ -127,6 +134,7 @@ mod test_template {
                 draft: Some(false),
                 description: Some("タイトル4".to_string()),
                 title_prefix: Some("###".to_string()),
+                bibliography: None,
             },
         ];
 
