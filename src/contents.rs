@@ -18,6 +18,13 @@ pub struct SlideContents {
 }
 
 impl SlideContents {
+    /// update references in all pages
+    pub fn update_all_references(&mut self, bib_index: &HashMap<&BibEntry, usize>) {
+        for (i, page) in self.pages.iter_mut().enumerate() {
+            page.update_references(i + 1, bib_index);
+        }
+    }
+
     /// generate inverted index of bibliography entries
     pub fn generate_bib_index<'a>(
         &self,
@@ -37,7 +44,7 @@ impl SlideContents {
     }
 
     /// get bib entries each page
-    fn enumerate_bib_entries<'a>(&self, bib_entries: &'a [BibEntry]) -> Vec<Vec<&'a BibEntry>> {
+    pub fn enumerate_bib_entries<'a>(&self, bib_entries: &'a [BibEntry]) -> Vec<Vec<&'a BibEntry>> {
         self.pages
             .iter()
             .map(|page| page.enumerate_references(bib_entries))
@@ -92,7 +99,7 @@ pub struct SlidePage {
 impl SlidePage {
     /// enumerate references in the page
     pub fn enumerate_references<'a>(&self, bib_entries: &'a [BibEntry]) -> Vec<&'a BibEntry> {
-        let re = Regex::new(r"\[.*?\]\(#(.*?)\)").unwrap();
+        let re = Regex::new(r"\[.*?\]\(#(.*?)(|:\d+)\)").unwrap();
 
         // collect keys from the page
         let keys: Vec<&str> = re
@@ -105,6 +112,28 @@ impl SlidePage {
             .filter_map(|&key| bib_entries.iter().find(|entry| entry.tag == key))
             .unique()
             .collect()
+    }
+
+    /// update reference item
+    pub fn update_references(&mut self, page_id: usize, bib_index: &HashMap<&BibEntry, usize>) {
+        let re = Regex::new(r"\[.*?\]\(#(.*?)(|:\d+)\)").unwrap();
+
+        let new_contents = re
+            .replace_all(&self.contents, |caps: &regex::Captures| {
+                let key = &caps[1];
+                if let Some(entry) = bib_index.keys().find(|e| e.tag == key) {
+                    if let Some(&idx) = bib_index.get(entry) {
+                        format!("[{}](#{}:{})", idx, key, page_id)
+                    } else {
+                        caps[0].to_string()
+                    }
+                } else {
+                    caps[0].to_string()
+                }
+            })
+            .to_string();
+
+        self.contents = new_contents;
     }
 }
 
