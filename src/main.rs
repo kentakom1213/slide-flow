@@ -2,11 +2,12 @@ use clap::Parser;
 use slide_flow::{
     parser::{
         Cmd,
-        SubCommands::{Add, Build, Index, Init, PreCommit},
+        SubCommands::{Add, Bib, Build, Index, Init, PreCommit},
     },
     project::Project,
     subcommand::{
         add::add,
+        bib::update_bibliography,
         build::{build, build_html_commands, build_pdf_commands, copy_images_html},
         index::put_index,
         init::init,
@@ -85,6 +86,11 @@ fn runner() -> anyhow::Result<()> {
                         Ok(())
                     })
             }
+        }
+        Bib { dir } => {
+            let target_slide = project.get_slide(&dir)?;
+
+            update_bibliography(target_slide)
         }
         Build {
             directories,

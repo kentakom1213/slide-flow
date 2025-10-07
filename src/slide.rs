@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::config::SlideConf;
+use crate::{config::SlideConf, contents::SlideContents};
 
 /// project information
 #[derive(Debug, Clone)]
@@ -20,5 +20,13 @@ impl Slide {
     /// get path to images of the slide
     pub fn image_dir(&self) -> PathBuf {
         self.dir.join("images")
+    }
+
+    /// get contents of slide
+    pub fn get_contents(&self) -> anyhow::Result<SlideContents> {
+        // slide string
+        let slide_str = std::fs::read_to_string(self.slide_path())?;
+
+        SlideContents::try_from(slide_str.as_str())
     }
 }
