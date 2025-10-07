@@ -1,6 +1,9 @@
 //! スライドの中身の操作
 
+use std::collections::HashMap;
+
 use anyhow::bail;
+use itertools::Itertools;
 use regex::Regex;
 
 use crate::config::BibEntry;
@@ -12,6 +15,34 @@ pub struct SlideContents {
     pub frontmatter: String,
     /// Pages of slide
     pub pages: Vec<SlidePage>,
+}
+
+impl SlideContents {
+    /// generate inverted index of bibliography entries
+    pub fn generate_bib_index<'a>(
+        &self,
+        bib_entries: &'a [BibEntry],
+    ) -> HashMap<&'a BibEntry, usize> {
+        let mut bib_index = HashMap::new();
+
+        for page in &self.pages {
+            let refs = page.enumerate_references(bib_entries);
+            for entry in refs {
+                let cnt = bib_index.len();
+                bib_index.entry(entry).or_insert(cnt + 1);
+            }
+        }
+
+        bib_index
+    }
+
+    /// get bib entries each page
+    fn enumerate_bib_entries<'a>(&self, bib_entries: &'a [BibEntry]) -> Vec<Vec<&'a BibEntry>> {
+        self.pages
+            .iter()
+            .map(|page| page.enumerate_references(bib_entries))
+            .collect()
+    }
 }
 
 impl TryFrom<&str> for SlideContents {
@@ -72,6 +103,7 @@ impl SlidePage {
         // find corresponding BibEntry for each key
         keys.iter()
             .filter_map(|&key| bib_entries.iter().find(|entry| entry.tag == key))
+            .unique()
             .collect()
     }
 }

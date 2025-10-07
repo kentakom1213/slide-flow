@@ -88,10 +88,11 @@ fn runner() -> anyhow::Result<()> {
         }
         Bib { dir } => {
             let target_slide = project.get_slide(&dir)?;
-            let contents = target_slide.get_contents();
+            let contents = target_slide.get_contents()?;
+            let bib_entries = target_slide.conf.bibliography.as_deref().unwrap_or(&[]);
 
             println!("{:#?}", contents);
-            println!("{:#?}", target_slide.conf.bibliography);
+            println!("{:#?}", contents.generate_bib_index(bib_entries));
 
             Ok(())
         }
