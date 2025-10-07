@@ -7,6 +7,7 @@ use slide_flow::{
     project::Project,
     subcommand::{
         add::add,
+        bib::update_bibliography,
         build::{build, build_html_commands, build_pdf_commands, copy_images_html},
         index::put_index,
         init::init,
@@ -88,19 +89,8 @@ fn runner() -> anyhow::Result<()> {
         }
         Bib { dir } => {
             let target_slide = project.get_slide(&dir)?;
-            let mut contents = target_slide.get_contents()?;
-            let bib_entries = target_slide.conf.bibliography.as_deref().unwrap_or(&[]);
 
-            println!("{:#?}", contents);
-            println!("{:#?}", contents.enumerate_bib_entries(bib_entries));
-            let bib_index = contents.generate_bib_index(bib_entries);
-            println!("{:#?}", bib_index);
-
-            contents.update_all_references(&bib_index);
-
-            println!("{:#?}", contents);
-
-            Ok(())
+            update_bibliography(target_slide)
         }
         Build {
             directories,

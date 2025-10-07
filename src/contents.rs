@@ -19,9 +19,16 @@ pub struct SlideContents {
 
 impl SlideContents {
     /// update references in all pages
-    pub fn update_all_references(&mut self, bib_index: &HashMap<&BibEntry, usize>) {
-        for (i, page) in self.pages.iter_mut().enumerate() {
-            page.update_references(i + 1, bib_index);
+    pub fn modify_bibliography(&mut self, bib_entries: &[BibEntry]) {
+        let entries_each_page = self.enumerate_bib_entries(bib_entries);
+        let bib_index = self.generate_bib_index(bib_entries);
+
+        for ((page, references), page_id) in self.pages.iter_mut().zip(entries_each_page).zip(1..) {
+            // update references
+            page.update_references(page_id, &bib_index);
+
+            // update bibliography
+            page.update_bib_footnote(page_id, &references, &bib_index)
         }
     }
 
@@ -49,6 +56,22 @@ impl SlideContents {
             .iter()
             .map(|page| page.enumerate_references(bib_entries))
             .collect()
+    }
+
+    /// encode to marp
+    pub fn to_marp(&self) -> String {
+        let mut s = String::new();
+        s += "---\n";
+        s += &self.frontmatter;
+        s += "---\n";
+
+        s += &self
+            .pages
+            .iter()
+            .map(|p| p.contents.trim())
+            .join("\n\n---\n\n");
+
+        s
     }
 }
 
@@ -123,7 +146,7 @@ impl SlidePage {
                 let key = &caps[1];
                 if let Some(entry) = bib_index.keys().find(|e| e.tag == key) {
                     if let Some(&idx) = bib_index.get(entry) {
-                        format!("[{}](#{}:{})", idx, key, page_id)
+                        format!("[{idx}](#{key}:{page_id})")
                     } else {
                         caps[0].to_string()
                     }
@@ -134,6 +157,74 @@ impl SlidePage {
             .to_string();
 
         self.contents = new_contents;
+    }
+
+    /// update reference of footnote
+    pub fn update_bib_footnote(
+        &mut self,
+        page_id: usize,
+        references: &[&BibEntry],
+        bib_index: &HashMap<&BibEntry, usize>,
+    ) {
+        if references.is_empty() {
+            return;
+        }
+
+        let new_bibliography = Self::generate_new_bibliography(page_id, references, bib_index);
+
+        let re = Regex::new(r#"(?s)<div class="footnote">(.*?)</div>"#).unwrap();
+
+        if let Some((fstart, fend)) = re
+            .captures(&self.contents)
+            .and_then(|cap| cap.get(1))
+            .map(|m| (m.start(), m.end()))
+        {
+            let old_footnote = &self.contents[fstart..fend];
+
+            // clear references
+            let re = Regex::new(r#"(?m)<span id=".*">.*</span>.*"#).unwrap();
+            let mut new_footnote = re.replace_all(old_footnote, "").to_string();
+
+            new_footnote += &new_bibliography;
+
+            // replace old footnote
+            self.contents.replace_range(fstart..fend, &new_footnote);
+        } else {
+            // append new footnote
+
+            self.contents += &format!(
+                r#"
+
+<div class="footnote">
+
+{new_bibliography}
+
+</div>
+"#
+            );
+        }
+    }
+
+    fn generate_new_bibliography(
+        page_id: usize,
+        references: &[&BibEntry],
+        bib_index: &HashMap<&BibEntry, usize>,
+    ) -> String {
+        references
+            .iter()
+            .map(|e| (bib_index[e], e))
+            .sorted_by_key(|(k, _)| *k)
+            .map(|(k, e)| {
+                format!(
+                    r#"<span id="{}:{}">[{}]</span> {}"#,
+                    e.tag,
+                    page_id,
+                    k,
+                    e.format()
+                )
+            })
+            .join("\n")
+            + "\n\n"
     }
 }
 
