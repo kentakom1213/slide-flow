@@ -1,6 +1,6 @@
 [package]
 name = "slide-flow"
-version = "0.1.1"
+version = "0.1.2"
 description = "A CLI tool for managing Marp markdown slide presentations."
 authors = ["Kenta Komoto"]
 license = "MIT"
