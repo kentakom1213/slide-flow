@@ -122,7 +122,7 @@ pub struct SlidePage {
 impl SlidePage {
     /// enumerate references in the page
     pub fn enumerate_references<'a>(&self, bib_entries: &'a [BibEntry]) -> Vec<&'a BibEntry> {
-        let re = Regex::new(r"\[.*?\]\(#(.*?)(|:\d+)\)").unwrap();
+        let re = Regex::new(r"\[\d*?\]\(#(.*?)(|:\d+)\)").unwrap();
 
         // collect keys from the page
         let keys: Vec<&str> = re
@@ -139,7 +139,7 @@ impl SlidePage {
 
     /// update reference item
     pub fn update_references(&mut self, page_id: usize, bib_index: &HashMap<&BibEntry, usize>) {
-        let re = Regex::new(r"\[.*?\]\(#(.*?)(|:\d+)\)").unwrap();
+        let re = Regex::new(r"\[\d*?\]\(#(.*?)(|:\d+)\)").unwrap();
 
         let new_contents = re
             .replace_all(&self.contents, |caps: &regex::Captures| {
@@ -312,7 +312,7 @@ title: Sample Slide
 author: John Doe
 ---
 # Slide 1
-Some content here with a reference [see this](#ref2) and another [example](#ref1).
+Some content here with a reference [[2](#ref2)] and another [1](#ref1).
 "#;
 
         let slide_contents = SlideContents::try_from(s).unwrap();
