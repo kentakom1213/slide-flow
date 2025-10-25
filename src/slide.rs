@@ -9,12 +9,23 @@ pub struct Slide {
     pub dir: PathBuf,
     /// slide configuration
     pub conf: SlideConf,
+    /// slide type (marp / ipe)
+    pub type_: SlideType,
+}
+
+#[derive(Clone, Debug)]
+pub enum SlideType {
+    Marp,
+    Ipe,
 }
 
 impl Slide {
     /// get path to slide file
     pub fn slide_path(&self) -> PathBuf {
-        self.dir.join("slide.md")
+        match self.type_ {
+            SlideType::Marp => self.dir.join("slide.md"),
+            SlideType::Ipe => self.dir.join("slide.ipe"),
+        }
     }
 
     /// get path to images of the slide

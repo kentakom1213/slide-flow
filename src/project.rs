@@ -8,7 +8,7 @@ use itertools::Itertools;
 
 use crate::{
     config::{ProjectConf, SlideConf},
-    slide::Slide,
+    slide::{Slide, SlideType},
 };
 
 /// project information
@@ -66,13 +66,21 @@ impl Project {
         // read config file
         let Ok(conf_str) = std::fs::read_to_string(&conf_path) else {
             bail!(
-                "The project config file does not exist: {}",
+                "The slide config file does not exist: {}",
                 conf_path.to_string_lossy()
             );
         };
         let conf: SlideConf = toml::from_str(&conf_str)?;
+        // detect slide type
+        let type_ = if dir.join("slide.md").exists() {
+            SlideType::Marp
+        } else if dir.join("slide.ipe").exists() {
+            SlideType::Ipe
+        } else {
+            bail!("The slide file does not exist.")
+        };
 
-        Ok(Slide { dir, conf })
+        Ok(Slide { dir, conf, type_ })
     }
 
     /// get config files for all slides

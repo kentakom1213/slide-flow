@@ -5,10 +5,11 @@ use slide_flow::{
         SubCommands::{Add, Bib, Build, Index, Init, PreCommit},
     },
     project::Project,
+    slide::SlideType,
     subcommand::{
         add::add,
         bib::update_bibliography,
-        build::{build, build_html_commands, build_pdf_commands, copy_images_html},
+        build::{build, build_html_commands, build_pdf_commands, copy_images_html, copy_ipe_pdf},
         index::put_index,
         init::init,
         pre_commit::{create_files, remove_cache},
@@ -104,6 +105,13 @@ fn runner() -> anyhow::Result<()> {
                     log::error!("The slide does not exist: {}", dir.to_string_lossy());
                     continue;
                 };
+
+                if matches!(target_slide.type_, SlideType::Ipe) {
+                    if let Err(e) = copy_ipe_pdf(&project, &target_slide) {
+                        log::error!("Failed to pdf: {}", e);
+                    }
+                    continue;
+                }
 
                 let build_html_cmd = build_html_commands(&project, &target_slide);
                 let build_pdf_cmd = build_pdf_commands(&project, &target_slide);

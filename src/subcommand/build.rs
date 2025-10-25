@@ -206,6 +206,25 @@ pub fn build_html_commands<'a>(
         })
 }
 
+/// copy slide pdf to output directory
+pub fn copy_ipe_pdf<'a>(project: &'a Project, slide: &'a Slide) -> anyhow::Result<()> {
+    let output_files = make_file_stems(slide);
+
+    let source_pdf_path = slide.dir.join("slide.pdf");
+
+    for stem in output_files {
+        let pdf_save_path = project
+            .root_dir
+            .join(&project.conf.output_dir)
+            .join(stem + ".pdf");
+
+        // copy images
+        std::fs::copy(&source_pdf_path, &pdf_save_path)?;
+    }
+
+    Ok(())
+}
+
 /// copy images to output directory
 pub fn copy_images_html<'a>(project: &'a Project, slide: &'a Slide) -> anyhow::Result<()> {
     let output_files = make_file_stems(slide);
