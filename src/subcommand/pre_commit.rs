@@ -6,7 +6,7 @@ use askama::Template;
 
 use crate::{
     project::Project,
-    subcommand::build::make_versioned_stems,
+    subcommand::build::{make_file_stems, make_versioned_stems},
     template::{IndexTemplate, ReadmeTemplate},
 };
 
@@ -63,6 +63,9 @@ pub fn remove_cache(project: &Project) -> anyhow::Result<()> {
 
         for stem in make_versioned_stems(slide) {
             retained_files.insert(stem.clone());
+            retained_files.insert(stem + ".pdf");
+        }
+        for stem in make_file_stems(slide) {
             retained_files.insert(stem + ".pdf");
         }
 

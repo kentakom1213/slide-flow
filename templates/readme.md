@@ -13,7 +13,7 @@
 %}
 {%- if !slide.draft.unwrap_or(false) -%}
 {% let stem = slide.secret.as_ref().unwrap_or(slide.name) %}
-| {{ slide.name }} | [Slide]({{ project.base_url }}{{ stem }}_v{{ slide.version }}) | [PDF]({{ project.base_url }}{{ stem }}_v{{ slide.version }}.pdf) | {{ description }} |
+| {{ slide.name }} | [Slide]({{ project.base_url }}{{ stem }}_v{{ slide.version }}) | [PDF]({{ project.base_url }}{{ stem }}.pdf) | {{ description }} |
 {%- else %}
 | {{ slide.name }} | - | - | {{ description }} |
 {%- endif %}

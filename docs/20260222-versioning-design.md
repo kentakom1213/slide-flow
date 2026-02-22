@@ -7,7 +7,7 @@
 
 - `version` 更新時に過去版を `src/<slide>/v<version>/` へ退避
 - HTML は `/<stem>_v<version>` で配信
-- PDF は `/<stem>_v<version>.pdf`（版付き）で配信
+- PDF は最新版を `/<stem>.pdf`、版指定を `/<stem>_v<version>.pdf` で配信
 
 ## 要件
 
@@ -17,7 +17,7 @@
 - 過去版は `src/<slide>/v<version>/` に保持
 - `output` 配下の成果物は次の命名規則に統一
 - HTML: `output/<stem>_v<version>/index.html`（常に最新のみ）
-- PDF: `output/<stem>_v<version>.pdf`（複数版を共存）
+- PDF: `output/<stem>.pdf`（最新版エイリアス） + `output/<stem>_v<version>.pdf`（複数版を共存）
   - 最新版のみ `output/<slide>.pdf` とする．
 
 ## 制約と設計方針
@@ -74,7 +74,7 @@ src/<slide>/v<N-1>/
 ### 出力
 
 - 最新版 HTML: `output/<stem>_v<current>/index.html`
-- 最新版 PDF: `output/<stem>_v<current>.pdf`
+- 最新版 PDF: `output/<stem>.pdf` と `output/<stem>_v<current>.pdf`
 - 過去版 PDF: `output/<stem>_v<past>.pdf`
 
 方針:
@@ -117,6 +117,7 @@ src/<slide>/v<N-1>/
 
 - `src/subcommand/pre_commit.rs`
 - `remove_cache` の保持判定を version-aware に変更
+  - 最新版エイリアス `output/<stem>.pdf` も保持対象にする
 
 - `templates/readme.md`
 - PDF リンクの stem を `<slide>_v<version>` へ変更

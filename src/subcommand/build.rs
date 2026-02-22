@@ -88,7 +88,7 @@ pub fn build(commands: impl Iterator<Item = BuildCommand>, max_concurrent: usize
 }
 
 /// generate file stems for output files
-fn make_file_stems(slide: &Slide) -> Vec<String> {
+pub fn make_file_stems(slide: &Slide) -> Vec<String> {
     let mut res = slide.conf.custom_path.clone().unwrap_or_default();
 
     if let Some(prefix) = &slide.conf.secret {
@@ -105,6 +105,14 @@ pub fn make_versioned_stems(slide: &Slide) -> Vec<String> {
     make_file_stems(slide)
         .into_iter()
         .map(|stem| format!("{stem}_v{}", slide.conf.version))
+        .collect()
+}
+
+/// latest PDF aliases (`<stem>.pdf`) for current slide
+pub fn make_latest_pdf_aliases(slide: &Slide) -> Vec<String> {
+    make_file_stems(slide)
+        .into_iter()
+        .map(|stem| format!("{stem}.pdf"))
         .collect()
 }
 
@@ -150,6 +158,47 @@ pub fn build_pdf_commands<'a>(
         })
 }
 
+/// generate build commands for latest PDF aliases (`<stem>.pdf`)
+pub fn build_pdf_latest_alias_commands<'a>(
+    project: &'a Project,
+    slide: &'a Slide,
+) -> impl Iterator<Item = BuildCommand> + 'a {
+    let make_command = move |output_file_name: String| {
+        let mut cmd = Command::new(&project.conf.build.marp_binary);
+
+        cmd.arg("--theme-set")
+            .arg(&project.conf.build.theme_dir)
+            .arg("--html")
+            .arg("true")
+            .arg("-o")
+            .arg(
+                project
+                    .root_dir
+                    .join(&project.conf.output_dir)
+                    .join(output_file_name),
+            )
+            .arg("--pdf")
+            .arg("--allow-local-files")
+            .arg("--title")
+            .arg(&slide.conf.name)
+            .arg("--author")
+            .arg(&project.conf.author)
+            .arg("--description")
+            .arg(slide.conf.description.clone().unwrap_or_default())
+            .arg(slide.dir.join("slide.md"));
+
+        cmd
+    };
+
+    make_latest_pdf_aliases(slide)
+        .into_iter()
+        .map(move |file_name| BuildCommand::PDF {
+            dir: slide.dir.clone(),
+            command: make_command(file_name),
+            conf: slide.conf.clone(),
+        })
+}
+
 /// generate build commands for HTML
 pub fn build_html_commands<'a>(
     project: &'a Project,
@@ -191,7 +240,11 @@ pub fn build_html_commands<'a>(
 }
 
 /// copy ipe slide pdf to output directory
-pub fn copy_ipe_pdf(project: &Project, slide: &Slide) -> anyhow::Result<()> {
+pub fn copy_ipe_pdf(
+    project: &Project,
+    slide: &Slide,
+    include_latest_alias: bool,
+) -> anyhow::Result<()> {
     let source_pdf_path = slide.dir.join("slide.pdf");
 
     for stem in make_versioned_stems(slide) {
@@ -201,6 +254,16 @@ pub fn copy_ipe_pdf(project: &Project, slide: &Slide) -> anyhow::Result<()> {
             .join(stem + ".pdf");
 
         std::fs::copy(&source_pdf_path, &pdf_save_path)?;
+    }
+
+    if include_latest_alias {
+        for file_name in make_latest_pdf_aliases(slide) {
+            let pdf_save_path = project
+                .root_dir
+                .join(&project.conf.output_dir)
+                .join(file_name);
+            std::fs::copy(&source_pdf_path, &pdf_save_path)?;
+        }
     }
 
     Ok(())

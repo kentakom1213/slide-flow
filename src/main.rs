@@ -10,7 +10,10 @@ use slide_flow::{
     subcommand::{
         add::add,
         bib::update_bibliography,
-        build::{build, build_html_commands, build_pdf_commands, copy_images_html, copy_ipe_pdf},
+        build::{
+            build, build_html_commands, build_pdf_commands, build_pdf_latest_alias_commands,
+            copy_images_html, copy_ipe_pdf,
+        },
         index::put_index,
         init::init,
         pre_commit::{create_files, remove_cache},
@@ -117,11 +120,11 @@ fn runner() -> anyhow::Result<()> {
                 };
 
                 if matches!(target_slide.type_, SlideType::Ipe) {
-                    if let Err(e) = copy_ipe_pdf(&project, &target_slide) {
+                    if let Err(e) = copy_ipe_pdf(&project, &target_slide, true) {
                         log::error!("Failed to pdf: {}", e);
                     }
                     for archived in archived_slides {
-                        if let Err(e) = copy_ipe_pdf(&project, &archived) {
+                        if let Err(e) = copy_ipe_pdf(&project, &archived, false) {
                             log::error!("Failed to archived pdf: {}", e);
                         }
                     }
@@ -130,6 +133,8 @@ fn runner() -> anyhow::Result<()> {
 
                 let build_html_cmd = build_html_commands(&project, &target_slide);
                 let build_pdf_cmd = build_pdf_commands(&project, &target_slide);
+                let build_pdf_latest_alias_cmd =
+                    build_pdf_latest_alias_commands(&project, &target_slide);
 
                 // copy images
                 if let Err(e) = copy_images_html(&project, &target_slide) {
@@ -139,6 +144,7 @@ fn runner() -> anyhow::Result<()> {
 
                 cmds.extend(build_html_cmd);
                 cmds.extend(build_pdf_cmd);
+                cmds.extend(build_pdf_latest_alias_cmd);
 
                 for archived in archived_slides {
                     if matches!(archived.type_, SlideType::Ipe) {
