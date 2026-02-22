@@ -6,7 +6,8 @@
 
 - **Project Initialization**: Quickly set up a new `slide-flow` project with essential directories and a default configuration file.
 - **Slide Management**: Easily add new slides to your project.
-- **Automated Indexing**: Generate an `index.html` and `README.md` that list your slides, with support for public and secret slides.
+- **Version Management**: Archive previous slide versions with `version bump`.
+- **Automated Indexing**: Generate an `index.html` and `README.md` that list your non-draft slides.
 - **Efficient Building**: Compile your Marp markdown slides into HTML and PDF formats, with concurrent build capabilities.
 - **Cache Management**: Clean up generated build artifacts to maintain a tidy project.
 - **Customizable**: Configure project-wide settings, slide templates, and build options via `config.toml`.
@@ -79,6 +80,20 @@ slide-flow add my-draft-slide --draft true
 
 This will create a new directory `src/my-first-slide/` with `slide.md` and `slide.toml`.
 
+### Bump Slide Version
+
+Use this command before starting a new revision of an existing slide:
+
+```bash
+slide-flow version bump --dir src/my-first-slide
+```
+
+This command:
+
+- archives current files into `src/my-first-slide/v<version>/`
+- increments `version` in `src/my-first-slide/slide.toml`
+- recreates the working files under `src/my-first-slide/`
+
 ### Prepare for Commit (Pre-Commit)
 
 Run this command to update the `README.md` and `index.html` with the latest slide list and clean up old build caches.
@@ -117,6 +132,10 @@ slide-flow build src/my-first-slide --concurrent 8
 
 The built output will be placed in the directory specified by `output_dir` in your `config.toml` (default: `output/`).
 
+- Latest HTML is generated at `output/<slide>/index.html`
+- PDF files are generated with version suffix: `output/<slide>_v<version>.pdf`
+- Archived versions under `src/<slide>/v*/` are also built as versioned PDFs
+
 ## Project Structure
 
 A typical `slide-flow` project looks like this:
@@ -131,14 +150,19 @@ A typical `slide-flow` project looks like this:
 │   │   ├── images/         # Images specific to slide1
 │   │   │   └── .gitkeep
 │   │   ├── slide.md        # Marp markdown for slide1
-│   │   └── slide.toml      # Configuration for slide1
+│   │   ├── slide.toml      # Configuration for slide1
+│   │   └── v1/             # Archived version directory
+│   │       ├── images/
+│   │       ├── slide.md
+│   │       └── slide.toml
 │   └── slide2/
 │       └── ...
 ├── output/                 # Default output directory for built slides
 │   ├── index.html          # Main index page (generated)
 │   ├── slide1/
 │   │   └── index.html      # HTML output for slide1
-│   └── slide1.pdf          # PDF output for slide1
+│   ├── slide1_v2.pdf       # PDF output for current version
+│   └── slide1_v1.pdf       # PDF output for archived version
 └── config.toml             # Project-wide configuration
 ```
 
@@ -175,6 +199,11 @@ draft = false                            # Set to true to exclude from public bu
 description = "An overview of common graph algorithms." # Description for index pages
 title_prefix = "# "                      # Marp title prefix (e.g., for indexing)
 ```
+
+`version` is used by build output naming:
+
+- HTML route is stable: `/<slide-name>`
+- PDF route is versioned: `/<slide-name>_v<version>.pdf`
 
 ## Contributing
 

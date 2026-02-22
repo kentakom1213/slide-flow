@@ -72,7 +72,7 @@ src/<slide>/v<N-1>/
 ### 出力
 
 - 最新版 HTML: `output/<slide>/index.html`
-- 最新版 PDF: `output/<slide>.pdf`
+- 最新版 PDF: `output/<slide>_v<current>.pdf`
 - 過去版 PDF: `output/<slide>_v<past>.pdf`
 
 方針:

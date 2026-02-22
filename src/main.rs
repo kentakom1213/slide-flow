@@ -2,17 +2,22 @@ use clap::Parser;
 use slide_flow::{
     parser::{
         Cmd,
-        SubCommands::{Add, Bib, Build, Index, Init, PreCommit},
+        SubCommands::{Add, Bib, Build, Index, Init, PreCommit, Version},
+        VersionCommands,
     },
     project::Project,
     slide::SlideType,
     subcommand::{
         add::add,
         bib::update_bibliography,
-        build::{build, build_html_commands, build_pdf_commands, copy_images_html, copy_ipe_pdf},
+        build::{
+            build, build_html_command, build_pdf_command, copy_images_html, copy_ipe_pdf,
+            pdf_file_name,
+        },
         index::put_index,
         init::init,
         pre_commit::{create_files, remove_cache},
+        version::bump,
     },
 };
 use std::io::Write;
@@ -106,15 +111,36 @@ fn runner() -> anyhow::Result<()> {
                     continue;
                 };
 
+                let Ok(archived_slides) = project.get_archived_slides(&target_slide) else {
+                    log::error!(
+                        "Failed to load archived slide versions: {}",
+                        dir.to_string_lossy()
+                    );
+                    continue;
+                };
+
                 if matches!(target_slide.type_, SlideType::Ipe) {
-                    if let Err(e) = copy_ipe_pdf(&project, &target_slide) {
+                    let pdf_name =
+                        pdf_file_name(&target_slide.conf.name, target_slide.conf.version);
+                    if let Err(e) = copy_ipe_pdf(&project, &target_slide, &pdf_name) {
                         log::error!("Failed to pdf: {}", e);
+                    }
+                    for archived in archived_slides {
+                        let pdf_name =
+                            pdf_file_name(&target_slide.conf.name, archived.conf.version);
+                        if let Err(e) = copy_ipe_pdf(&project, &archived, &pdf_name) {
+                            log::error!("Failed to archived pdf: {}", e);
+                        }
                     }
                     continue;
                 }
 
-                let build_html_cmd = build_html_commands(&project, &target_slide);
-                let build_pdf_cmd = build_pdf_commands(&project, &target_slide);
+                let build_html_cmd = build_html_command(&project, &target_slide);
+                let build_pdf_cmd = build_pdf_command(
+                    &project,
+                    &target_slide,
+                    pdf_file_name(&target_slide.conf.name, target_slide.conf.version),
+                );
 
                 // copy images
                 if let Err(e) = copy_images_html(&project, &target_slide) {
@@ -122,14 +148,28 @@ fn runner() -> anyhow::Result<()> {
                     continue;
                 }
 
-                cmds.extend(build_html_cmd);
-                cmds.extend(build_pdf_cmd);
+                cmds.push(build_html_cmd);
+                cmds.push(build_pdf_cmd);
+
+                for archived in archived_slides {
+                    if matches!(archived.type_, SlideType::Ipe) {
+                        continue;
+                    }
+                    cmds.push(build_pdf_command(
+                        &project,
+                        &archived,
+                        pdf_file_name(&target_slide.conf.name, archived.conf.version),
+                    ));
+                }
             }
 
             build(cmds.into_iter(), concurrent);
 
             Ok(())
         }
+        Version { command } => match command {
+            VersionCommands::Bump { dir } => bump(&project, dir),
+        },
     }
 }
 

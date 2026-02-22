@@ -6,6 +6,7 @@ use askama::Template;
 
 use crate::{
     project::Project,
+    subcommand::build::pdf_file_name,
     template::{IndexTemplate, ReadmeTemplate},
 };
 
@@ -51,36 +52,42 @@ pub fn create_files(project: &Project) -> anyhow::Result<()> {
 /// **input**
 /// - `project`: project information
 pub fn remove_cache(project: &Project) -> anyhow::Result<()> {
-    // directories not to be removed
-    let retained_files: HashSet<_> = project
-        .get_slide_conf_list()
-        .iter()
-        // retain only the files that are not draft
-        .filter(|conf| !conf.draft.unwrap_or(false))
-        .flat_map(|conf| {
-            [conf.secret.to_owned().unwrap_or(conf.name.to_owned())]
-                .into_iter()
-                // If there is a custom path, it is retained as well.
-                .chain(
-                    conf.custom_path
-                        .as_ref()
-                        .into_iter()
-                        .flat_map(|s| s.to_owned()),
-                )
-        })
-        .collect();
+    // files/directories not to be removed from output root
+    let mut retained_files: HashSet<String> = HashSet::new();
+    retained_files.insert("index.html".to_string());
+
+    for slide in &project.slides {
+        if slide.conf.draft.unwrap_or(false) {
+            continue;
+        }
+
+        let base_name = slide.conf.name.clone();
+        retained_files.insert(base_name.clone());
+        retained_files.insert(pdf_file_name(&base_name, slide.conf.version));
+
+        for archived in project.get_archived_slides(slide)? {
+            if archived.conf.draft.unwrap_or(false) {
+                continue;
+            }
+            retained_files.insert(pdf_file_name(&base_name, archived.conf.version));
+        }
+    }
 
     // output directory
     let output_dir = project.root_dir.join(&project.conf.output_dir);
+    if !output_dir.exists() {
+        return Ok(());
+    }
 
     // get all files for removal
     let remove_files = fs::read_dir(output_dir)?
         .filter_map(|entry| entry.ok())
         .map(|entry| entry.path())
-        .filter_map(|path| {
-            let stem = path.file_stem()?.to_str()?;
-            // if the file is not in the retained files, it should be removed
-            (!retained_files.contains(stem)).then_some(path)
+        .filter(|path| {
+            let Some(name) = path.file_name().and_then(|v| v.to_str()) else {
+                return false;
+            };
+            !retained_files.contains(name)
         });
 
     // remove files

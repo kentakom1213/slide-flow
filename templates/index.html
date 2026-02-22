@@ -80,8 +80,7 @@
     <div class="container">
       <h1>Slides</h1>
 
-      {% for slide in slides %} {% if slide.secret.is_none() &&
-      !slide.draft.unwrap_or(false) %}
+      {% for slide in slides %} {% if !slide.draft.unwrap_or(false) %}
       <div class="slide-card">
         <div class="slide-title">{{ slide.name }}</div>
         {% if slide.description.is_some() %}
@@ -91,7 +90,7 @@
         {% endif %}
         <div class="button-group">
           <a class="link-button" href="./{{ slide.name }}"> Slide </a>
-          <a class="pdf-button" href="./{{ slide.name }}.pdf"> PDF </a>
+          <a class="pdf-button" href="./{{ slide.name }}_v{{ slide.version }}.pdf"> PDF </a>
         </div>
       </div>
       {% endif %} {% endfor %}

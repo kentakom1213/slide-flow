@@ -92,4 +92,21 @@ impl Project {
     pub fn get_slide(&self, dir: &Path) -> anyhow::Result<Slide> {
         Self::get_slide_inner(&self.root_dir, dir)
     }
+
+    /// get archived versions of a slide (src/<slide>/v*)
+    pub fn get_archived_slides(&self, slide: &Slide) -> anyhow::Result<Vec<Slide>> {
+        let archived = fs::read_dir(&slide.dir)?
+            .filter_map(|e| e.ok())
+            .filter(|entry| entry.path().is_dir())
+            .filter(|entry| {
+                entry.file_name().to_str().is_some_and(|name| {
+                    name.starts_with('v') && name[1..].chars().all(|c| c.is_ascii_digit())
+                })
+            })
+            .filter_map(|entry| Self::get_slide_inner(&self.root_dir, &entry.path()).ok())
+            .sorted_by_key(|slide| slide.conf.version)
+            .collect();
+
+        Ok(archived)
+    }
 }
