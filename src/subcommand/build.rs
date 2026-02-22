@@ -230,7 +230,7 @@ pub fn build_html_commands<'a>(
         cmd
     };
 
-    make_versioned_stems(slide)
+    make_file_stems(slide)
         .into_iter()
         .map(move |stem| BuildCommand::HTML {
             dir: slide.dir.clone(),
@@ -271,7 +271,7 @@ pub fn copy_ipe_pdf(
 
 /// copy images to output directory
 pub fn copy_images_html(project: &Project, slide: &Slide) -> anyhow::Result<()> {
-    for stem in make_versioned_stems(slide) {
+    for stem in make_file_stems(slide) {
         let target_images_dir = project
             .root_dir
             .join(&project.conf.output_dir)

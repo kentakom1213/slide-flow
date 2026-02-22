@@ -6,7 +6,7 @@
 この設計では、次を実現します。
 
 - `version` 更新時に過去版を `src/<slide>/v<version>/` へ退避
-- HTML は `/<stem>_v<version>` で配信
+- HTML は `/<stem>` で配信（常に最新版）
 - PDF は最新版を `/<stem>.pdf`、版指定を `/<stem>_v<version>.pdf` で配信
 
 ## 要件
@@ -16,7 +16,7 @@
 - 最新版の編集対象は `src/<slide>/` 直下
 - 過去版は `src/<slide>/v<version>/` に保持
 - `output` 配下の成果物は次の命名規則に統一
-- HTML: `output/<stem>_v<version>/index.html`（常に最新のみ）
+- HTML: `output/<stem>/index.html`（常に最新のみ）
 - PDF: `output/<stem>.pdf`（最新版エイリアス） + `output/<stem>_v<version>.pdf`（複数版を共存）
   - 最新版のみ `output/<slide>.pdf` とする．
 
@@ -73,7 +73,7 @@ src/<slide>/v<N-1>/
 
 ### 出力
 
-- 最新版 HTML: `output/<stem>_v<current>/index.html`
+- 最新版 HTML: `output/<stem>/index.html`
 - 最新版 PDF: `output/<stem>.pdf` と `output/<stem>_v<current>.pdf`
 - 過去版 PDF: `output/<stem>_v<past>.pdf`
 
@@ -85,7 +85,7 @@ src/<slide>/v<N-1>/
 
 `remove_cache` は次を保持対象にする。
 
-- `output/<slide>/`（最新版 HTML）
+- `output/<stem>/`（最新版 HTML）
 - `output/<slide>_v<k>.pdf`（`src/<slide>/` と `src/<slide>/v*/` に存在する全 version）
 
 これにより、古いが有効な PDF を誤削除しない。
@@ -93,7 +93,7 @@ src/<slide>/v<N-1>/
 ## README / index の表示方針
 
 - スライド一覧は `src/<slide>/slide.toml`（最新版）を基準に表示
-- Slide リンクは従来どおり `/<slide>`
+- Slide リンクは `/<stem>` を表示
 - PDF リンクは `/<slide>_v<current>.pdf` を表示
 - 過去版 PDF 一覧は初期スコープ外（必要なら将来拡張）
 
@@ -139,7 +139,7 @@ src/<slide>/v<N-1>/
 - `vN/` 作成、`version` 更新、既存 `vN/` 衝突時エラー
 
 - `build`
-- 最新 HTML が `output/<slide>/index.html`
+- 最新 HTML が `output/<stem>/index.html`
 - 最新/過去 PDF が `output/<slide>_v<version>.pdf`
 
 - `pre-commit`

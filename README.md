@@ -132,7 +132,7 @@ slide-flow build src/my-first-slide --concurrent 8
 
 The built output will be placed in the directory specified by `output_dir` in your `config.toml` (default: `output/`).
 
-- Latest HTML is generated at `output/<stem>_v<version>/index.html`
+- Latest HTML is generated at `output/<stem>/index.html`
 - PDF files are generated with version suffix: `output/<stem>_v<version>.pdf`
 - Archived versions under `src/<slide>/v*/` are also built as versioned PDFs
 
@@ -200,10 +200,11 @@ description = "An overview of common graph algorithms." # Description for index 
 title_prefix = "# "                      # Marp title prefix (e.g., for indexing)
 ```
 
-`version` is used by build output naming. Here `stem` is `secret` if present, otherwise `name`:
+`version` is used by PDF naming. Here `stem` is `secret` if present, otherwise `name`:
 
-- HTML route: `/<stem>_v<version>`
-- PDF route: `/<stem>_v<version>.pdf`
+- HTML route (latest): `/<stem>`
+- PDF latest route: `/<stem>.pdf`
+- PDF versioned route: `/<stem>_v<version>.pdf`
 
 ## Contributing
 
