@@ -60,4 +60,19 @@ pub enum SubCommands {
         #[clap(long, default_value = "4")]
         concurrent: usize,
     },
+    /// slide version operations
+    Version {
+        #[clap(subcommand)]
+        command: VersionCommands,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum VersionCommands {
+    /// bump slide version and archive current contents
+    Bump {
+        /// slide directory (e.g. src/intro)
+        #[clap(long, short)]
+        dir: PathBuf,
+    },
 }
