@@ -6,16 +6,18 @@
 この設計では、次を実現します。
 
 - `version` 更新時に過去版を `src/<slide>/v<version>/` へ退避
-- HTML は常に `/<slide>`（最新）で配信
-- PDF は `/<slide>_v<version>.pdf`（版付き）で配信
+- HTML は `/<stem>_v<version>` で配信
+- PDF は `/<stem>_v<version>.pdf`（版付き）で配信
 
 ## 要件
+
+ここで `stem` は `custom_path` の各要素 + `secret`（あれば）または `name` を指す。
 
 - 最新版の編集対象は `src/<slide>/` 直下
 - 過去版は `src/<slide>/v<version>/` に保持
 - `output` 配下の成果物は次の命名規則に統一
-- HTML: `output/<slide>/index.html`（常に最新のみ）
-- PDF: `output/<slide>_v<version>.pdf`（複数版を共存）
+- HTML: `output/<stem>_v<version>/index.html`（常に最新のみ）
+- PDF: `output/<stem>_v<version>.pdf`（複数版を共存）
   - 最新版のみ `output/<slide>.pdf` とする．
 
 ## 制約と設計方針
@@ -71,12 +73,12 @@ src/<slide>/v<N-1>/
 
 ### 出力
 
-- 最新版 HTML: `output/<slide>/index.html`
-- 最新版 PDF: `output/<slide>_v<current>.pdf`
-- 過去版 PDF: `output/<slide>_v<past>.pdf`
+- 最新版 HTML: `output/<stem>_v<current>/index.html`
+- 最新版 PDF: `output/<stem>_v<current>.pdf`
+- 過去版 PDF: `output/<stem>_v<past>.pdf`
 
 方針:
-- HTML は最新のみを生成（URL 安定化）
+- HTML は最新のみを生成
 - PDF は全版を版付き名で生成（履歴保持）
 
 ## pre-commit / キャッシュ削除仕様

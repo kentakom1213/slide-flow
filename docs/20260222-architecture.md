@@ -64,10 +64,10 @@
 
 1. 指定されたディレクトリごとに `Project::get_slide` でスライド解決
 2. 併せて `src/<slide>/v*/` の過去版を列挙
-3. Ipe の場合は `slide.pdf` を `output/<name>_v<version>.pdf` へコピー
-4. Marp の場合は最新版 HTML（`output/<name>/index.html`）を生成
-5. Marp の場合は最新/過去版の PDF（`output/<name>_v<version>.pdf`）を生成
-6. 最新版の `images/` を `output/<name>/images` へコピー
+3. Ipe の場合は `slide.pdf` を `output/<stem>_v<version>.pdf` へコピー
+4. Marp の場合は最新版 HTML（`output/<stem>_v<version>/index.html`）を生成
+5. Marp の場合は最新/過去版の PDF（`output/<stem>_v<version>.pdf`）を生成
+6. 最新版の `images/` を `output/<stem>_v<version>/images` へコピー
 7. 非 `draft` スライドのみを対象に並列実行
 
 ### `pre-commit`

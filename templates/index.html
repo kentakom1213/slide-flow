@@ -89,8 +89,8 @@
         </div>
         {% endif %}
         <div class="button-group">
-          <a class="link-button" href="./{{ slide.name }}"> Slide </a>
-          <a class="pdf-button" href="./{{ slide.name }}_v{{ slide.version }}.pdf"> PDF </a>
+          <a class="link-button" href="./{{ slide.secret.as_ref().unwrap_or(slide.name) }}_v{{ slide.version }}"> Slide </a>
+          <a class="pdf-button" href="./{{ slide.secret.as_ref().unwrap_or(slide.name) }}_v{{ slide.version }}.pdf"> PDF </a>
         </div>
       </div>
       {% endif %} {% endfor %}

@@ -87,125 +87,141 @@ pub fn build(commands: impl Iterator<Item = BuildCommand>, max_concurrent: usize
     });
 }
 
-pub fn pdf_file_name(slide_name: &str, version: u8) -> String {
-    format!("{slide_name}_v{version}.pdf")
-}
+/// generate file stems for output files
+fn make_file_stems(slide: &Slide) -> Vec<String> {
+    let mut res = slide.conf.custom_path.clone().unwrap_or_default();
 
-/// generate a build command for PDF
-pub fn build_pdf_command(
-    project: &Project,
-    slide: &Slide,
-    output_file_name: String,
-) -> BuildCommand {
-    let mut cmd = Command::new(&project.conf.build.marp_binary);
-
-    cmd
-        // specify theme
-        .arg("--theme-set")
-        .arg(&project.conf.build.theme_dir)
-        // enable html
-        .arg("--html")
-        .arg("true")
-        // output name
-        .arg("-o")
-        .arg(
-            project
-                .root_dir
-                .join(&project.conf.output_dir)
-                .join(output_file_name),
-        )
-        // output format
-        .arg("--pdf")
-        .arg("--allow-local-files")
-        // title
-        .arg(&slide.conf.name)
-        // author
-        .arg("--author")
-        .arg(&project.conf.author)
-        // description
-        .arg("--description")
-        .arg(slide.conf.description.clone().unwrap_or_default())
-        // input markdown file
-        .arg(slide.dir.join("slide.md"));
-
-    BuildCommand::PDF {
-        dir: slide.dir.clone(),
-        command: cmd,
-        conf: slide.conf.clone(),
+    if let Some(prefix) = &slide.conf.secret {
+        res.push(prefix.clone());
+    } else {
+        res.push(slide.conf.name.clone());
     }
+
+    res
 }
 
-/// generate a build command for HTML (latest only)
-pub fn build_html_command(project: &Project, slide: &Slide) -> BuildCommand {
-    let mut cmd = Command::new(&project.conf.build.marp_binary);
-
-    cmd
-        // specify theme
-        .arg("--theme-set")
-        .arg(&project.conf.build.theme_dir)
-        // enable html
-        .arg("--html")
-        .arg("true")
-        // output name
-        .arg("-o")
-        .arg(
-            project
-                .root_dir
-                .join(&project.conf.output_dir)
-                .join(&slide.conf.name)
-                .join("index.html"),
-        )
-        // title
-        .arg("--title")
-        .arg(&slide.conf.name)
-        // author
-        .arg("--author")
-        .arg(&project.conf.author)
-        // description
-        .arg("--description")
-        .arg(slide.conf.description.clone().unwrap_or_default())
-        // input markdown file
-        .arg(slide.dir.join("slide.md"));
-
-    BuildCommand::HTML {
-        dir: slide.dir.clone(),
-        command: cmd,
-        conf: slide.conf.clone(),
-    }
+/// append `_v<version>` to file stems and use them as published URLs
+pub fn make_versioned_stems(slide: &Slide) -> Vec<String> {
+    make_file_stems(slide)
+        .into_iter()
+        .map(|stem| format!("{stem}_v{}", slide.conf.version))
+        .collect()
 }
 
-/// copy slide pdf to output directory
-pub fn copy_ipe_pdf(
-    project: &Project,
-    slide: &Slide,
-    output_file_name: &str,
-) -> anyhow::Result<()> {
+/// generate build commands for PDF
+pub fn build_pdf_commands<'a>(
+    project: &'a Project,
+    slide: &'a Slide,
+) -> impl Iterator<Item = BuildCommand> + 'a {
+    let make_command = move |output_stem: String| {
+        let mut cmd = Command::new(&project.conf.build.marp_binary);
+
+        cmd.arg("--theme-set")
+            .arg(&project.conf.build.theme_dir)
+            .arg("--html")
+            .arg("true")
+            .arg("-o")
+            .arg(
+                project
+                    .root_dir
+                    .join(&project.conf.output_dir)
+                    .join(output_stem)
+                    .with_extension("pdf"),
+            )
+            .arg("--pdf")
+            .arg("--allow-local-files")
+            .arg("--title")
+            .arg(&slide.conf.name)
+            .arg("--author")
+            .arg(&project.conf.author)
+            .arg("--description")
+            .arg(slide.conf.description.clone().unwrap_or_default())
+            .arg(slide.dir.join("slide.md"));
+
+        cmd
+    };
+
+    make_versioned_stems(slide)
+        .into_iter()
+        .map(move |stem| BuildCommand::PDF {
+            dir: slide.dir.clone(),
+            command: make_command(stem),
+            conf: slide.conf.clone(),
+        })
+}
+
+/// generate build commands for HTML
+pub fn build_html_commands<'a>(
+    project: &'a Project,
+    slide: &'a Slide,
+) -> impl Iterator<Item = BuildCommand> + 'a {
+    let make_command = move |output_stem: String| {
+        let mut cmd = Command::new(&project.conf.build.marp_binary);
+
+        cmd.arg("--theme-set")
+            .arg(&project.conf.build.theme_dir)
+            .arg("--html")
+            .arg("true")
+            .arg("-o")
+            .arg(
+                project
+                    .root_dir
+                    .join(&project.conf.output_dir)
+                    .join(&output_stem)
+                    .join("index.html"),
+            )
+            .arg("--title")
+            .arg(&slide.conf.name)
+            .arg("--author")
+            .arg(&project.conf.author)
+            .arg("--description")
+            .arg(slide.conf.description.clone().unwrap_or_default())
+            .arg(slide.dir.join("slide.md"));
+
+        cmd
+    };
+
+    make_versioned_stems(slide)
+        .into_iter()
+        .map(move |stem| BuildCommand::HTML {
+            dir: slide.dir.clone(),
+            command: make_command(stem),
+            conf: slide.conf.clone(),
+        })
+}
+
+/// copy ipe slide pdf to output directory
+pub fn copy_ipe_pdf(project: &Project, slide: &Slide) -> anyhow::Result<()> {
     let source_pdf_path = slide.dir.join("slide.pdf");
-    let pdf_save_path = project
-        .root_dir
-        .join(&project.conf.output_dir)
-        .join(output_file_name);
-    std::fs::copy(&source_pdf_path, &pdf_save_path)?;
+
+    for stem in make_versioned_stems(slide) {
+        let pdf_save_path = project
+            .root_dir
+            .join(&project.conf.output_dir)
+            .join(stem + ".pdf");
+
+        std::fs::copy(&source_pdf_path, &pdf_save_path)?;
+    }
 
     Ok(())
 }
 
 /// copy images to output directory
 pub fn copy_images_html(project: &Project, slide: &Slide) -> anyhow::Result<()> {
-    let target_images_dir = project
-        .root_dir
-        .join(&project.conf.output_dir)
-        .join(&slide.conf.name)
-        .join("images");
+    for stem in make_versioned_stems(slide) {
+        let target_images_dir = project
+            .root_dir
+            .join(&project.conf.output_dir)
+            .join(&stem)
+            .join("images");
 
-    // create target directory
-    if target_images_dir.exists() {
-        std::fs::remove_dir_all(&target_images_dir)?;
+        if target_images_dir.exists() {
+            std::fs::remove_dir_all(&target_images_dir)?;
+        }
+        std::fs::create_dir_all(&target_images_dir)?;
+
+        copy_images(slide, &target_images_dir)?;
     }
-    std::fs::create_dir_all(&target_images_dir)?;
-
-    // copy images
-    copy_images(slide, &target_images_dir)?;
 
     Ok(())
 }
@@ -214,19 +230,17 @@ pub fn copy_images_html(project: &Project, slide: &Slide) -> anyhow::Result<()> 
 fn copy_images(slide: &Slide, target_images_dir: &Path) -> anyhow::Result<()> {
     let slide_images_dir = slide.image_dir();
 
-    // if the slide does not have images, return
     if !slide_images_dir.exists() {
         return Ok(());
     }
 
-    // copy image files
     let images = std::fs::read_dir(&slide_images_dir)?;
 
     for image in images.filter_map(|e| e.ok()) {
         let path = image.path();
         let file_name = path.file_name().unwrap();
-        // skip hidden files
-        if file_name.to_string_lossy().starts_with(".") {
+
+        if file_name.to_string_lossy().starts_with('.') {
             continue;
         }
 
