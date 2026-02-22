@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
@@ -80,7 +80,8 @@
     <div class="container">
       <h1>Slides</h1>
 
-      {% for slide in slides %} {% if !slide.draft.unwrap_or(false) %}
+      {% for slide in slides %} {% if slide.secret.is_none() &&
+      !slide.draft.unwrap_or(false) %}
       <div class="slide-card">
         <div class="slide-title">{{ slide.name }}</div>
         {% if slide.description.is_some() %}
@@ -89,8 +90,18 @@
         </div>
         {% endif %}
         <div class="button-group">
-          <a class="link-button" href="./{{ slide.secret.as_ref().unwrap_or(slide.name) }}"> Slide </a>
-          <a class="pdf-button" href="./{{ slide.secret.as_ref().unwrap_or(slide.name) }}.pdf"> PDF </a>
+          <a
+            class="link-button"
+            href="./{{ slide.secret.as_ref().unwrap_or(slide.name) }}"
+          >
+            Slide
+          </a>
+          <a
+            class="pdf-button"
+            href="./{{ slide.secret.as_ref().unwrap_or(slide.name) }}.pdf"
+          >
+            PDF
+          </a>
         </div>
       </div>
       {% endif %} {% endfor %}
