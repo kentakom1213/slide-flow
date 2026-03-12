@@ -90,7 +90,7 @@
         </div>
         {% endif %}
         <div class="button-group">
-          {% if !slide.type_.is_ipe() %}
+          {% if slide.type_.is_marp() %}
           <a
             class="link-button"
             href="./{{ slide.secret.as_ref().unwrap_or(slide.name) }}"
