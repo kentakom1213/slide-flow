@@ -128,6 +128,7 @@ fn runner() -> anyhow::Result<()> {
                             log::error!("Failed to archived pdf: {}", e);
                         }
                     }
+                    log::info!("Copy PDF: {}", dir.to_string_lossy());
                     continue;
                 }
 

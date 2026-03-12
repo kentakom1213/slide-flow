@@ -32,8 +32,11 @@ pub fn add(
     fs::write(images_dir.join(".gitkeep"), "")?;
 
     // make slide file
-    let slide_path = slides_dir.join("slide.md");
-    fs::write(&slide_path, &project.conf.template.slide)?;
+    let slide_path = slides_dir.join(type_.file_name());
+    if type_.is_marp() {
+        log::info!("Created a new slide: {}", slide_path.to_string_lossy());
+        fs::write(&slide_path, &project.conf.template.slide)?;
+    }
 
     // make config file
     let conf = SlideConf {
@@ -52,8 +55,6 @@ pub fn add(
     let conf_path = slides_dir.join("slide.toml");
 
     fs::write(conf_path, conf_str)?;
-
-    log::info!("Created a new slide: {}", slide_path.to_string_lossy());
 
     Ok(())
 }
