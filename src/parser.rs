@@ -22,27 +22,27 @@ pub struct Cmd {
 
 #[derive(Debug, Subcommand)]
 pub enum SubCommands {
-    /// initialize project
+    /// Initialize project
     Init,
-    /// create new slide
+    /// Create new slide
     #[clap(arg_required_else_help = true)]
     Add {
         /// slide name
         #[clap(required = true)]
         name: String,
-        /// make secret page
+        /// Make secret page
         #[clap(long, default_value_t = true)]
         secret: bool,
-        /// make draft page
+        /// Make draft page
         #[clap(long, default_value_t = false)]
         draft: bool,
-        /// slide type ([marp]|ipe)
+        /// Slide type. By default `marp`
         #[clap(long = "type")]
         type_: Option<SlideType>,
     },
-    /// prepare slides for build
+    /// Prepare slides for build
     PreCommit,
-    /// put index to slide
+    /// Put index to slide
     Index {
         /// specify slide directory
         #[clap(short, long)]
@@ -51,12 +51,12 @@ pub enum SubCommands {
         #[clap(short, long)]
         quiet: bool,
     },
-    /// modify slide bibliography
+    /// Modify slide bibliography
     Bib {
         /// slide directory
         dir: PathBuf,
     },
-    /// build slide
+    /// Build slide
     Build {
         /// path to slide directory
         #[clap(required = true)]
@@ -65,7 +65,7 @@ pub enum SubCommands {
         #[clap(long, default_value = "4")]
         concurrent: usize,
     },
-    /// slide version operations
+    /// Slide version operations
     Version {
         #[clap(subcommand)]
         command: VersionCommands,
