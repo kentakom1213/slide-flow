@@ -90,12 +90,14 @@
         </div>
         {% endif %}
         <div class="button-group">
+          {% if !slide.type_.is_ipe() %}
           <a
             class="link-button"
             href="./{{ slide.secret.as_ref().unwrap_or(slide.name) }}"
           >
             Slide
           </a>
+          {% endif %}
           <a
             class="pdf-button"
             href="./{{ slide.secret.as_ref().unwrap_or(slide.name) }}.pdf"

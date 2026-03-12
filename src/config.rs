@@ -1,5 +1,6 @@
 //! configration
 
+use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
 /// configuration for project
@@ -92,8 +93,35 @@ pub struct SlideConf {
     pub description: Option<String>,
     /// prefix of the title
     pub title_prefix: Option<String>,
+    /// type of slide.
+    #[serde(rename = "type", default)]
+    pub type_: SlideType,
     /// bibliography entries
     pub bibliography: Option<Vec<BibEntry>>,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, ValueEnum)]
+pub enum SlideType {
+    #[default]
+    Marp,
+    Ipe,
+}
+
+impl SlideType {
+    pub fn is_marp(&self) -> bool {
+        matches!(self, Self::Marp)
+    }
+
+    pub fn is_ipe(&self) -> bool {
+        matches!(self, Self::Ipe)
+    }
+
+    pub fn file_name(&self) -> &'static str {
+        match self {
+            Self::Marp => "slide.md",
+            Self::Ipe => "slide.ipe",
+        }
+    }
 }
 
 /// bibliography entry

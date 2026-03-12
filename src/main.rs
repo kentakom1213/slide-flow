@@ -6,7 +6,6 @@ use slide_flow::{
         VersionCommands,
     },
     project::Project,
-    slide::SlideType,
     subcommand::{
         add::add,
         bib::update_bibliography,
@@ -62,7 +61,8 @@ fn runner() -> anyhow::Result<()> {
             name,
             secret,
             draft,
-        } => add(&project, name, secret, draft),
+            type_,
+        } => add(&project, name, secret, draft, type_.unwrap_or_default()),
         PreCommit => {
             // remove cache
             remove_cache(&project)?;
@@ -119,7 +119,7 @@ fn runner() -> anyhow::Result<()> {
                     continue;
                 };
 
-                if matches!(target_slide.type_, SlideType::Ipe) {
+                if target_slide.conf.type_.is_ipe() {
                     if let Err(e) = copy_ipe_pdf(&project, &target_slide, true) {
                         log::error!("Failed to pdf: {}", e);
                     }
@@ -147,10 +147,9 @@ fn runner() -> anyhow::Result<()> {
                 cmds.extend(build_pdf_latest_alias_cmd);
 
                 for archived in archived_slides {
-                    if matches!(archived.type_, SlideType::Ipe) {
-                        continue;
+                    if archived.conf.type_.is_marp() {
+                        cmds.extend(build_pdf_commands(&project, &archived));
                     }
-                    cmds.extend(build_pdf_commands(&project, &archived));
                 }
             }
 

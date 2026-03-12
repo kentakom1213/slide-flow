@@ -4,9 +4,18 @@ use std::fs;
 
 use anyhow::bail;
 
-use crate::{config::SlideConf, project::Project};
+use crate::{
+    config::{SlideConf, SlideType},
+    project::Project,
+};
 
-pub fn add(project: &Project, name: String, secret: bool, draft: bool) -> anyhow::Result<()> {
+pub fn add(
+    project: &Project,
+    name: String,
+    secret: bool,
+    draft: bool,
+    type_: SlideType,
+) -> anyhow::Result<()> {
     // directory name
     let slides_dir = project.root_dir.join("src").join(&name);
 
@@ -35,6 +44,7 @@ pub fn add(project: &Project, name: String, secret: bool, draft: bool) -> anyhow
         draft: draft.then_some(true),
         description: Some(String::new()),
         title_prefix: None,
+        type_,
         bibliography: Some(vec![]),
     };
 

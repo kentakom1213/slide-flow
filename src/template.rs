@@ -22,7 +22,7 @@ mod test_template {
     use askama::Template;
 
     use super::*;
-    use crate::config::{BuildConf, SlideConf, TemplateConf};
+    use crate::config::{BuildConf, SlideConf, SlideType, TemplateConf};
 
     #[test]
     fn test_index() {
@@ -35,6 +35,7 @@ mod test_template {
                 draft: None,
                 description: None,
                 title_prefix: None,
+                type_: SlideType::Marp,
                 bibliography: None,
             },
             SlideConf {
@@ -45,6 +46,7 @@ mod test_template {
                 draft: None,
                 description: None,
                 title_prefix: Some("#".to_string()),
+                type_: SlideType::Ipe,
                 bibliography: None,
             },
             SlideConf {
@@ -55,6 +57,7 @@ mod test_template {
                 draft: Some(true),
                 description: None,
                 title_prefix: Some("##".to_string()),
+                type_: SlideType::Marp,
                 bibliography: None,
             },
             SlideConf {
@@ -65,6 +68,7 @@ mod test_template {
                 draft: Some(false),
                 description: Some("タイトル4".to_string()),
                 title_prefix: Some("###".to_string()),
+                type_: SlideType::Marp,
                 bibliography: None,
             },
         ];
@@ -104,6 +108,7 @@ mod test_template {
                 draft: None,
                 description: None,
                 title_prefix: None,
+                type_: SlideType::Marp,
                 bibliography: None,
             },
             SlideConf {
@@ -114,6 +119,7 @@ mod test_template {
                 draft: None,
                 description: None,
                 title_prefix: Some("#".to_string()),
+                type_: SlideType::Ipe,
                 bibliography: None,
             },
             SlideConf {
@@ -124,6 +130,7 @@ mod test_template {
                 draft: Some(true),
                 description: None,
                 title_prefix: Some("##".to_string()),
+                type_: SlideType::Marp,
                 bibliography: None,
             },
             SlideConf {
@@ -134,6 +141,7 @@ mod test_template {
                 draft: Some(false),
                 description: Some("タイトル4".to_string()),
                 title_prefix: Some("###".to_string()),
+                type_: SlideType::Marp,
                 bibliography: None,
             },
         ];

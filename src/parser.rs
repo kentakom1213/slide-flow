@@ -4,6 +4,8 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 
+use crate::config::SlideType;
+
 /// command line arguments
 #[derive(Debug, Parser)]
 #[clap(
@@ -34,6 +36,9 @@ pub enum SubCommands {
         /// make draft page
         #[clap(long, default_value_t = false)]
         draft: bool,
+        /// slide type ([marp]|ipe)
+        #[clap(long = "type")]
+        type_: Option<SlideType>,
     },
     /// prepare slides for build
     PreCommit,

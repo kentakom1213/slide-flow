@@ -5,7 +5,7 @@ use std::{
 
 use anyhow::{bail, Context};
 
-use crate::{project::Project, slide::SlideType};
+use crate::project::Project;
 
 pub fn bump(project: &Project, dir: PathBuf) -> anyhow::Result<()> {
     if is_version_dir(&dir) {
@@ -25,10 +25,7 @@ pub fn bump(project: &Project, dir: PathBuf) -> anyhow::Result<()> {
 
     fs::create_dir(&archive_dir)?;
 
-    let slide_file_name = match slide.type_ {
-        SlideType::Marp => "slide.md",
-        SlideType::Ipe => "slide.ipe",
-    };
+    let slide_file_name = slide.conf.type_.file_name();
 
     let slide_file = slide.dir.join(slide_file_name);
     let conf_file = slide.dir.join("slide.toml");
@@ -50,9 +47,8 @@ pub fn bump(project: &Project, dir: PathBuf) -> anyhow::Result<()> {
     fs::create_dir_all(&images_dir)?;
     fs::write(images_dir.join(".gitkeep"), "")?;
 
-    match slide.type_ {
-        SlideType::Marp => fs::write(slide.dir.join("slide.md"), &project.conf.template.slide)?,
-        SlideType::Ipe => fs::write(slide.dir.join("slide.ipe"), "")?,
+    if slide.conf.type_.is_marp() {
+        fs::write(slide.dir.join("slide.md"), &project.conf.template.slide)?
     }
 
     let mut new_conf = slide.conf.clone();
@@ -112,6 +108,7 @@ mod tests {
     use std::path::PathBuf;
 
     use crate::{
+        config::SlideType,
         project::Project,
         subcommand::{add::add, init::init},
     };
@@ -125,7 +122,7 @@ mod tests {
 
         init(root).unwrap();
         let project = Project::get(root.to_path_buf()).unwrap();
-        add(&project, "intro".to_string(), false, false).unwrap();
+        add(&project, "intro".to_string(), false, false, SlideType::Marp).unwrap();
         std::fs::write(root.join("src/intro/slide.md"), "# before bump").unwrap();
 
         let project = Project::get(root.to_path_buf()).unwrap();
@@ -154,7 +151,7 @@ mod tests {
 
         init(root).unwrap();
         let project = Project::get(root.to_path_buf()).unwrap();
-        add(&project, "intro".to_string(), false, false).unwrap();
+        add(&project, "intro".to_string(), false, false, SlideType::Marp).unwrap();
         std::fs::create_dir_all(root.join("src/intro/v1")).unwrap();
 
         let project = Project::get(root.to_path_buf()).unwrap();

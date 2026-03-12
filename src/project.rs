@@ -8,7 +8,7 @@ use itertools::Itertools;
 
 use crate::{
     config::{ProjectConf, SlideConf},
-    slide::{Slide, SlideType},
+    slide::Slide,
 };
 
 /// project information
@@ -76,16 +76,8 @@ impl Project {
             );
         };
         let conf: SlideConf = toml::from_str(&conf_str)?;
-        // detect slide type
-        let type_ = if dir.join("slide.md").exists() {
-            SlideType::Marp
-        } else if dir.join("slide.ipe").exists() {
-            SlideType::Ipe
-        } else {
-            bail!("The slide file does not exist.")
-        };
 
-        Ok(Slide { dir, conf, type_ })
+        Ok(Slide { dir, conf })
     }
 
     /// get config files for all slides
@@ -147,7 +139,10 @@ fn split_versioned_alias(path: &Path) -> Option<(String, u8)> {
 
 #[cfg(test)]
 mod tests {
-    use crate::subcommand::{add::add, init::init, version::bump};
+    use crate::{
+        config::SlideType,
+        subcommand::{add::add, init::init, version::bump},
+    };
 
     use super::Project;
 
@@ -170,7 +165,7 @@ mod tests {
 
         init(root).unwrap();
         let project = Project::get(root.to_path_buf()).unwrap();
-        add(&project, "intro".to_string(), false, false).unwrap();
+        add(&project, "intro".to_string(), false, false, SlideType::Marp).unwrap();
         bump(
             &Project::get(root.to_path_buf()).unwrap(),
             "src/intro".into(),
