@@ -1,6 +1,7 @@
 //! build slides locally
 
 use std::{
+    fs,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -20,6 +21,8 @@ pub enum BuildCommand {
         command: Command,
         /// slide configuration
         conf: SlideConf,
+        /// temporary marp input file to delete after build
+        temp_input: Option<PathBuf>,
     },
     /// build command for HTML
     HTML {
@@ -29,6 +32,8 @@ pub enum BuildCommand {
         command: Command,
         /// slide configuration
         conf: SlideConf,
+        /// temporary marp input file to delete after build
+        temp_input: Option<PathBuf>,
     },
 }
 
@@ -48,9 +53,19 @@ pub fn build(commands: impl Iterator<Item = BuildCommand>, max_concurrent: usize
                 BuildCommand::PDF { conf, .. } => !conf.draft.unwrap_or(false),
             })
             .map(|cmd| {
-                let (dir, build_type, mut command) = match cmd {
-                    BuildCommand::PDF { dir, command, .. } => (dir, "PDF", command),
-                    BuildCommand::HTML { dir, command, .. } => (dir, "HTML", command),
+                let (dir, build_type, mut command, temp_input) = match cmd {
+                    BuildCommand::PDF {
+                        dir,
+                        command,
+                        temp_input,
+                        ..
+                    } => (dir, "PDF", command, temp_input),
+                    BuildCommand::HTML {
+                        dir,
+                        command,
+                        temp_input,
+                        ..
+                    } => (dir, "HTML", command, temp_input),
                 };
 
                 let semaphore = semaphore.clone();
@@ -58,7 +73,19 @@ pub fn build(commands: impl Iterator<Item = BuildCommand>, max_concurrent: usize
                 tokio::spawn(async move {
                     let _permit = semaphore.acquire_owned().await.unwrap();
 
-                    match command.output().await {
+                    let output = command.output().await;
+
+                    if let Some(path) = temp_input {
+                        if let Err(e) = fs::remove_file(&path) {
+                            log::warn!(
+                                "failed to remove temp input {}: {}",
+                                path.to_string_lossy(),
+                                e
+                            );
+                        }
+                    }
+
+                    match output {
                         Ok(_) => {
                             log::info!(
                                 "build {}: {} ... {}",
@@ -85,6 +112,32 @@ pub fn build(commands: impl Iterator<Item = BuildCommand>, max_concurrent: usize
             handle.await.unwrap();
         }
     });
+}
+
+fn prepare_marp_input(
+    project: &Project,
+    slide: &Slide,
+) -> anyhow::Result<(PathBuf, Option<PathBuf>)> {
+    let original_path = slide.dir.join("slide.md");
+    let suffix = project.conf.template.suffix.trim_end();
+
+    if suffix.is_empty() {
+        return Ok((original_path, None));
+    }
+
+    let mut contents = fs::read_to_string(&original_path)?;
+    if !contents.ends_with('\n') {
+        contents.push('\n');
+    }
+    contents.push_str(suffix);
+    contents.push('\n');
+
+    let temp_path = slide
+        .dir
+        .join(format!(".slide-flow-build-{}.md", uuid::Uuid::new_v4()));
+    fs::write(&temp_path, contents)?;
+
+    Ok((temp_path.clone(), Some(temp_path)))
 }
 
 /// generate file stems for output files
@@ -120,8 +173,9 @@ pub fn make_latest_pdf_aliases(slide: &Slide) -> Vec<String> {
 pub fn build_pdf_commands<'a>(
     project: &'a Project,
     slide: &'a Slide,
-) -> impl Iterator<Item = BuildCommand> + 'a {
-    let make_command = move |output_stem: String| {
+) -> anyhow::Result<Vec<BuildCommand>> {
+    let (input_path, temp_input) = prepare_marp_input(project, slide)?;
+    let make_command = |output_stem: String| {
         let mut cmd = Command::new(&project.conf.build.marp_binary);
 
         cmd.arg("--theme-set")
@@ -144,26 +198,29 @@ pub fn build_pdf_commands<'a>(
             .arg(&project.conf.author)
             .arg("--description")
             .arg(slide.conf.description.clone().unwrap_or_default())
-            .arg(slide.dir.join("slide.md"));
+            .arg(&input_path);
 
         cmd
     };
 
-    make_versioned_stems(slide)
+    Ok(make_versioned_stems(slide)
         .into_iter()
-        .map(move |stem| BuildCommand::PDF {
+        .map(|stem| BuildCommand::PDF {
             dir: slide.dir.clone(),
             command: make_command(stem),
             conf: slide.conf.clone(),
+            temp_input: temp_input.clone(),
         })
+        .collect())
 }
 
 /// generate build commands for latest PDF aliases (`<stem>.pdf`)
 pub fn build_pdf_latest_alias_commands<'a>(
     project: &'a Project,
     slide: &'a Slide,
-) -> impl Iterator<Item = BuildCommand> + 'a {
-    let make_command = move |output_file_name: String| {
+) -> anyhow::Result<Vec<BuildCommand>> {
+    let (input_path, temp_input) = prepare_marp_input(project, slide)?;
+    let make_command = |output_file_name: String| {
         let mut cmd = Command::new(&project.conf.build.marp_binary);
 
         cmd.arg("--theme-set")
@@ -185,26 +242,29 @@ pub fn build_pdf_latest_alias_commands<'a>(
             .arg(&project.conf.author)
             .arg("--description")
             .arg(slide.conf.description.clone().unwrap_or_default())
-            .arg(slide.dir.join("slide.md"));
+            .arg(&input_path);
 
         cmd
     };
 
-    make_latest_pdf_aliases(slide)
+    Ok(make_latest_pdf_aliases(slide)
         .into_iter()
-        .map(move |file_name| BuildCommand::PDF {
+        .map(|file_name| BuildCommand::PDF {
             dir: slide.dir.clone(),
             command: make_command(file_name),
             conf: slide.conf.clone(),
+            temp_input: temp_input.clone(),
         })
+        .collect())
 }
 
 /// generate build commands for HTML
 pub fn build_html_commands<'a>(
     project: &'a Project,
     slide: &'a Slide,
-) -> impl Iterator<Item = BuildCommand> + 'a {
-    let make_command = move |output_stem: String| {
+) -> anyhow::Result<Vec<BuildCommand>> {
+    let (input_path, temp_input) = prepare_marp_input(project, slide)?;
+    let make_command = |output_stem: String| {
         let mut cmd = Command::new(&project.conf.build.marp_binary);
 
         cmd.arg("--theme-set")
@@ -225,18 +285,20 @@ pub fn build_html_commands<'a>(
             .arg(&project.conf.author)
             .arg("--description")
             .arg(slide.conf.description.clone().unwrap_or_default())
-            .arg(slide.dir.join("slide.md"));
+            .arg(&input_path);
 
         cmd
     };
 
-    make_file_stems(slide)
+    Ok(make_file_stems(slide)
         .into_iter()
-        .map(move |stem| BuildCommand::HTML {
+        .map(|stem| BuildCommand::HTML {
             dir: slide.dir.clone(),
             command: make_command(stem),
             conf: slide.conf.clone(),
+            temp_input: temp_input.clone(),
         })
+        .collect())
 }
 
 /// copy ipe slide pdf to output directory
@@ -319,4 +381,103 @@ fn copy_images(slide: &Slide, target_images_dir: &Path) -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod test_build {
+    use super::prepare_marp_input;
+    use crate::config::{BuildConf, ProjectConf, SlideConf, SlideType, TemplateConf};
+    use crate::project::Project;
+    use crate::slide::Slide;
+
+    #[test]
+    fn prepare_marp_input_returns_original_when_suffix_is_empty() {
+        let root = tempfile::tempdir().unwrap();
+        let slide_dir = root.path().join("src").join("intro");
+        std::fs::create_dir_all(&slide_dir).unwrap();
+        std::fs::write(slide_dir.join("slide.md"), "# title\n").unwrap();
+
+        let project = Project {
+            root_dir: root.path().to_path_buf(),
+            conf: ProjectConf {
+                name: "demo".to_string(),
+                author: "author".to_string(),
+                base_url: "https://example.com".to_string(),
+                output_dir: "output".to_string(),
+                template: TemplateConf {
+                    slide: String::new(),
+                    index: String::new(),
+                    suffix: String::new(),
+                },
+                build: BuildConf::default(),
+            },
+            slides: vec![],
+        };
+        let slide = Slide {
+            dir: slide_dir.clone(),
+            conf: SlideConf {
+                name: "intro".to_string(),
+                version: 1,
+                secret: None,
+                custom_path: None,
+                draft: None,
+                description: None,
+                title_prefix: None,
+                type_: SlideType::Marp,
+                bibliography: None,
+            },
+        };
+
+        let (input_path, temp_input) = prepare_marp_input(&project, &slide).unwrap();
+
+        assert_eq!(input_path, slide_dir.join("slide.md"));
+        assert_eq!(temp_input, None);
+    }
+
+    #[test]
+    fn prepare_marp_input_appends_suffix_to_temp_file() {
+        let root = tempfile::tempdir().unwrap();
+        let slide_dir = root.path().join("src").join("intro");
+        std::fs::create_dir_all(&slide_dir).unwrap();
+        std::fs::write(slide_dir.join("slide.md"), "# title").unwrap();
+
+        let project = Project {
+            root_dir: root.path().to_path_buf(),
+            conf: ProjectConf {
+                name: "demo".to_string(),
+                author: "author".to_string(),
+                base_url: "https://example.com".to_string(),
+                output_dir: "output".to_string(),
+                template: TemplateConf {
+                    slide: String::new(),
+                    index: String::new(),
+                    suffix: "<script src=\"/shared.js\"></script>".to_string(),
+                },
+                build: BuildConf::default(),
+            },
+            slides: vec![],
+        };
+        let slide = Slide {
+            dir: slide_dir.clone(),
+            conf: SlideConf {
+                name: "intro".to_string(),
+                version: 1,
+                secret: None,
+                custom_path: None,
+                draft: None,
+                description: None,
+                title_prefix: None,
+                type_: SlideType::Marp,
+                bibliography: None,
+            },
+        };
+
+        let (input_path, temp_input) = prepare_marp_input(&project, &slide).unwrap();
+        let temp_input = temp_input.unwrap();
+        let contents = std::fs::read_to_string(&input_path).unwrap();
+
+        assert_eq!(input_path, temp_input);
+        assert!(contents.ends_with("<script src=\"/shared.js\"></script>\n"));
+        assert!(contents.starts_with("# title\n"));
+    }
 }

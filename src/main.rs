@@ -132,16 +132,34 @@ fn runner() -> anyhow::Result<()> {
                     continue;
                 }
 
-                let build_html_cmd = build_html_commands(&project, &target_slide);
-                let build_pdf_cmd = build_pdf_commands(&project, &target_slide);
-                let build_pdf_latest_alias_cmd =
-                    build_pdf_latest_alias_commands(&project, &target_slide);
-
                 // copy images
                 if let Err(e) = copy_images_html(&project, &target_slide) {
                     log::error!("Failed to copy images: {}", e);
                     continue;
                 }
+
+                let build_html_cmd = match build_html_commands(&project, &target_slide) {
+                    Ok(cmds) => cmds,
+                    Err(e) => {
+                        log::error!("Failed to prepare HTML build: {}", e);
+                        continue;
+                    }
+                };
+                let build_pdf_cmd = match build_pdf_commands(&project, &target_slide) {
+                    Ok(cmds) => cmds,
+                    Err(e) => {
+                        log::error!("Failed to prepare PDF build: {}", e);
+                        continue;
+                    }
+                };
+                let build_pdf_latest_alias_cmd =
+                    match build_pdf_latest_alias_commands(&project, &target_slide) {
+                        Ok(cmds) => cmds,
+                        Err(e) => {
+                            log::error!("Failed to prepare latest PDF build: {}", e);
+                            continue;
+                        }
+                    };
 
                 cmds.extend(build_html_cmd);
                 cmds.extend(build_pdf_cmd);
@@ -149,7 +167,16 @@ fn runner() -> anyhow::Result<()> {
 
                 for archived in archived_slides {
                     if archived.conf.type_.is_marp() {
-                        cmds.extend(build_pdf_commands(&project, &archived));
+                        match build_pdf_commands(&project, &archived) {
+                            Ok(archived_cmds) => cmds.extend(archived_cmds),
+                            Err(e) => {
+                                log::error!(
+                                    "Failed to prepare archived PDF build {}: {}",
+                                    archived.dir.to_string_lossy(),
+                                    e
+                                );
+                            }
+                        }
                     }
                 }
             }
