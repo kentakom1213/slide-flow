@@ -11,14 +11,8 @@ use tokio::{process::Command, runtime::Runtime, sync::Semaphore};
 
 use crate::{config::SlideConf, project::Project, slide::Slide};
 
-pub(crate) struct TempInputFile {
+pub struct TempInputFile {
     path: PathBuf,
-}
-
-impl TempInputFile {
-    fn path(&self) -> &Path {
-        &self.path
-    }
 }
 
 impl Drop for TempInputFile {
@@ -38,7 +32,7 @@ impl Drop for TempInputFile {
 }
 
 /// build commands and their information
-pub(crate) enum BuildCommand {
+pub enum BuildCommand {
     /// build command for PDF
     PDF {
         /// target directory
@@ -64,7 +58,7 @@ pub(crate) enum BuildCommand {
 }
 
 /// run build commands
-pub(crate) fn build(commands: impl Iterator<Item = BuildCommand>, max_concurrent: usize) {
+pub fn build(commands: impl Iterator<Item = BuildCommand>, max_concurrent: usize) {
     // initialize tokio runtime
     let runtime = Runtime::new().unwrap();
 
@@ -191,7 +185,7 @@ pub fn make_latest_pdf_aliases(slide: &Slide) -> Vec<String> {
 }
 
 /// generate build commands for PDF
-pub(crate) fn build_pdf_commands<'a>(
+pub fn build_pdf_commands<'a>(
     project: &'a Project,
     slide: &'a Slide,
 ) -> anyhow::Result<Vec<BuildCommand>> {
@@ -236,7 +230,7 @@ pub(crate) fn build_pdf_commands<'a>(
 }
 
 /// generate build commands for latest PDF aliases (`<stem>.pdf`)
-pub(crate) fn build_pdf_latest_alias_commands<'a>(
+pub fn build_pdf_latest_alias_commands<'a>(
     project: &'a Project,
     slide: &'a Slide,
 ) -> anyhow::Result<Vec<BuildCommand>> {
@@ -280,7 +274,7 @@ pub(crate) fn build_pdf_latest_alias_commands<'a>(
 }
 
 /// generate build commands for HTML
-pub(crate) fn build_html_commands<'a>(
+pub fn build_html_commands<'a>(
     project: &'a Project,
     slide: &'a Slide,
 ) -> anyhow::Result<Vec<BuildCommand>> {
@@ -499,7 +493,7 @@ mod test_build {
         let temp_input = temp_input.unwrap();
         let contents = std::fs::read_to_string(&input_path).unwrap();
 
-        assert_eq!(input_path, PathBuf::from(temp_input.path()));
+        assert_eq!(input_path, temp_input.path.clone());
         assert!(contents.ends_with("\n\n<script src=\"/shared.js\"></script>\n"));
         assert_eq!(contents, "# title\n\n<script src=\"/shared.js\"></script>\n");
     }
