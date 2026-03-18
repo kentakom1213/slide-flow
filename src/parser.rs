@@ -77,7 +77,7 @@ pub enum VersionCommands {
     /// bump slide version and archive current contents
     Bump {
         /// slide directory (e.g. src/intro)
-        #[clap(long, short)]
+        #[clap(required = true)]
         dir: PathBuf,
     },
 }
