@@ -1,8 +1,8 @@
 use clap::Parser;
 use slide_flow::{
     parser::{
-        Cmd,
-        SubCommands::{Add, Bib, Build, Index, Init, PreCommit, Version},
+        Cmd, SlidesCommands,
+        SubCommands::{Add, Bib, Build, Index, Init, PreCommit, Slide, Slides, Version},
         VersionCommands,
     },
     project::Project,
@@ -15,7 +15,9 @@ use slide_flow::{
         },
         index::put_index,
         init::init,
+        list::list,
         pre_commit::{create_files, remove_cache},
+        slide::show,
         version::bump,
     },
 };
@@ -57,6 +59,7 @@ fn runner() -> anyhow::Result<()> {
     // run subcommand
     match parser.subcommand {
         Init => unreachable!(),
+        Slide { selector } => show(&project, &selector),
         Add {
             name,
             secret,
@@ -187,6 +190,9 @@ fn runner() -> anyhow::Result<()> {
         }
         Version { command } => match command {
             VersionCommands::Bump { dir } => bump(&project, dir),
+        },
+        Slides { command } => match command {
+            SlidesCommands::List => list(&project),
         },
     }
 }

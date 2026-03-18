@@ -3,5 +3,7 @@ pub mod bib;
 pub mod build;
 pub mod index;
 pub mod init;
+pub mod list;
 pub mod pre_commit;
+pub mod slide;
 pub mod version;

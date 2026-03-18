@@ -80,6 +80,32 @@ slide-flow add my-draft-slide --draft true
 
 This will create a new directory `src/my-first-slide/` with `slide.md` and `slide.toml`.
 
+### List Managed Slides
+
+Show the slides currently managed in the project:
+
+```bash
+slide-flow slides list
+```
+
+The command prints an aligned table with these columns:
+
+- `name`
+- `version`
+- `type`
+- `draft`
+
+### Show Slide Details
+
+Show slide details by list number or slide path:
+
+```bash
+slide-flow slide 1
+slide-flow slide src/my-first-slide
+```
+
+The detail view includes slide metadata and URLs for each version.
+
 ### Bump Slide Version
 
 Use this command before starting a new revision of an existing slide:

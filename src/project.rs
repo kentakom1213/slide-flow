@@ -109,6 +109,19 @@ impl Project {
         Self::get_slide_inner(&self.root_dir, dir)
     }
 
+    pub fn get_slide_by_index(&self, index: usize) -> anyhow::Result<Slide> {
+        self.slides
+            .get(index)
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("The slide number is out of range: {}", index + 1))
+    }
+
+    pub fn get_slide_root(&self, dir: &Path) -> anyhow::Result<Slide> {
+        let slide = self.get_slide(dir)?;
+        let root_dir = root_slide_dir(&slide.dir);
+        Self::get_slide_inner(&self.root_dir, &root_dir)
+    }
+
     /// get archived versions of a slide (src/<slide>/v*)
     pub fn get_archived_slides(&self, slide: &Slide) -> anyhow::Result<Vec<Slide>> {
         let archived = fs::read_dir(&slide.dir)?
@@ -137,8 +150,25 @@ fn split_versioned_alias(path: &Path) -> Option<(String, u8)> {
     Some((base.to_string(), version))
 }
 
+fn root_slide_dir(dir: &Path) -> PathBuf {
+    let Some(file_name) = dir.file_name().and_then(|s| s.to_str()) else {
+        return dir.to_path_buf();
+    };
+
+    if file_name.starts_with('v') && file_name[1..].chars().all(|c| c.is_ascii_digit()) {
+        return dir
+            .parent()
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| dir.to_path_buf());
+    }
+
+    dir.to_path_buf()
+}
+
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use crate::{
         config::SlideType,
         subcommand::{add::add, init::init, version::bump},
@@ -183,5 +213,26 @@ mod tests {
             .unwrap();
         assert_eq!(archived.conf.version, 1);
         assert!(archived.dir.to_string_lossy().ends_with("src/intro/v1"));
+    }
+
+    #[test]
+    fn test_get_slide_root_resolves_archived_version_directory() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+
+        init(root).unwrap();
+        let project = Project::get(root.to_path_buf()).unwrap();
+        add(&project, "intro".to_string(), false, false, SlideType::Marp).unwrap();
+        bump(
+            &Project::get(root.to_path_buf()).unwrap(),
+            "src/intro".into(),
+        )
+        .unwrap();
+
+        let project = Project::get(root.to_path_buf()).unwrap();
+        let slide = project.get_slide_root(Path::new("src/intro/v1")).unwrap();
+
+        assert_eq!(slide.conf.version, 2);
+        assert!(slide.dir.to_string_lossy().ends_with("src/intro"));
     }
 }
