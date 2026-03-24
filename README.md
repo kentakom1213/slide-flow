@@ -17,7 +17,7 @@
 To install `slide-flow`, ensure you have [Rust and Cargo](https://www.rust-lang.org/tools/install) installed. Then, run the following command:
 
 ```bash
-cargo install slide-flow
+cargo install --git https://github.com/kentakom1213/slide-flow -f
 ```
 
 ## Usage
