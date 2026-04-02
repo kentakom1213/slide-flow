@@ -2,7 +2,7 @@ use clap::Parser;
 use slide_flow::{
     parser::{
         Cmd, SlidesCommands,
-        SubCommands::{Add, Bib, Build, Index, Init, PreCommit, Slide, Slides, Version},
+        SubCommands::{Add, Bib, Build, Index, Init, PreCommit, Slides, Version},
         VersionCommands,
     },
     project::Project,
@@ -59,7 +59,6 @@ fn runner() -> anyhow::Result<()> {
     // run subcommand
     match parser.subcommand {
         Init => unreachable!(),
-        Slide { selector } => show(&project, &selector),
         Add {
             name,
             secret,
@@ -193,6 +192,7 @@ fn runner() -> anyhow::Result<()> {
         },
         Slides { command } => match command {
             SlidesCommands::List => list(&project),
+            SlidesCommands::Detail { selector } => show(&project, &selector),
         },
     }
 }

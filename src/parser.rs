@@ -24,11 +24,6 @@ pub struct Cmd {
 pub enum SubCommands {
     /// Initialize project
     Init,
-    /// Show slide details by list number or path
-    Slide {
-        /// slide number from `slides list` or slide path like `src/intro`
-        selector: String,
-    },
     /// Create new slide
     #[clap(arg_required_else_help = true)]
     Add {
@@ -96,4 +91,9 @@ pub enum VersionCommands {
 pub enum SlidesCommands {
     /// List managed slides
     List,
+    /// Show slide details by list number or path
+    Detail {
+        /// slide number from `slides list` or slide path like `src/intro`
+        selector: String,
+    },
 }
