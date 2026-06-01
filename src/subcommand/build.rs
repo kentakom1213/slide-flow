@@ -460,6 +460,40 @@ pub fn write_alias_redirects(
         return Ok(());
     }
 
+    write_redirect(
+        project,
+        &format!("{}/pdf/index.html", plan.canonical_stem),
+        &absolute_url(
+            project,
+            &format!("{}_v{}.pdf", plan.canonical_stem, slide.conf.version),
+        ),
+        &absolute_url(project, &format!("{}/ogp.png", plan.canonical_stem)),
+        slide,
+    )?;
+
+    for version in archived_slides.iter().chain(std::iter::once(slide)) {
+        if version.conf.draft.unwrap_or(false) {
+            continue;
+        }
+
+        write_redirect(
+            project,
+            &format!(
+                "{}/pdf/v{}/index.html",
+                plan.canonical_stem, version.conf.version
+            ),
+            &absolute_url(
+                project,
+                &format!("{}_v{}.pdf", plan.canonical_stem, version.conf.version),
+            ),
+            &absolute_url(
+                project,
+                &format!("{}/v{}/ogp.png", plan.canonical_stem, version.conf.version),
+            ),
+            &version,
+        )?;
+    }
+
     for alias in &plan.alias_stems {
         write_redirect(
             project,
@@ -780,6 +814,12 @@ mod test_build {
         let pdf_html = std::fs::read_to_string(output_dir.join("talks/pdf/index.html")).unwrap();
         let pdf_v2_html =
             std::fs::read_to_string(output_dir.join("talks/pdf/v2/index.html")).unwrap();
+        let canonical_pdf_html =
+            std::fs::read_to_string(output_dir.join("uuid/pdf/index.html")).unwrap();
+        let canonical_pdf_v1_html =
+            std::fs::read_to_string(output_dir.join("uuid/pdf/v1/index.html")).unwrap();
+        let canonical_pdf_v2_html =
+            std::fs::read_to_string(output_dir.join("uuid/pdf/v2/index.html")).unwrap();
 
         assert!(latest_html.contains("https://example.com/slides/uuid/"));
         assert!(latest_html.contains(
@@ -798,6 +838,18 @@ mod test_build {
         ));
         assert!(pdf_v2_html.contains("https://example.com/slides/uuid_v2.pdf"));
         assert!(pdf_v2_html.contains(
+            r#"<meta property="og:image" content="https://example.com/slides/uuid/v2/ogp.png" />"#
+        ));
+        assert!(canonical_pdf_html.contains("https://example.com/slides/uuid_v2.pdf"));
+        assert!(canonical_pdf_html.contains(
+            r#"<meta property="og:image" content="https://example.com/slides/uuid/ogp.png" />"#
+        ));
+        assert!(canonical_pdf_v1_html.contains("https://example.com/slides/uuid_v1.pdf"));
+        assert!(canonical_pdf_v1_html.contains(
+            r#"<meta property="og:image" content="https://example.com/slides/uuid/v1/ogp.png" />"#
+        ));
+        assert!(canonical_pdf_v2_html.contains("https://example.com/slides/uuid_v2.pdf"));
+        assert!(canonical_pdf_v2_html.contains(
             r#"<meta property="og:image" content="https://example.com/slides/uuid/v2/ogp.png" />"#
         ));
     }

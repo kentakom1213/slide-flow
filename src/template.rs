@@ -40,24 +40,12 @@ impl PublishedSlide {
         };
         let pdf_path = match plan.strategy {
             PathStrategy::Legacy => format!("{primary_stem}.pdf"),
-            PathStrategy::CanonicalWithRedirects => {
-                if plan.alias_stems.is_empty() {
-                    format!("{}_v{}.pdf", plan.canonical_stem, slide.conf.version)
-                } else {
-                    format!("{primary_stem}/pdf/")
-                }
-            }
+            PathStrategy::CanonicalWithRedirects => format!("{primary_stem}/pdf/"),
         };
         let version_pdf_paths = (1..=slide.conf.version)
             .map(|version| match plan.strategy {
                 PathStrategy::Legacy => format!("{primary_stem}_v{version}.pdf"),
-                PathStrategy::CanonicalWithRedirects => {
-                    if plan.alias_stems.is_empty() {
-                        format!("{}_v{version}.pdf", plan.canonical_stem)
-                    } else {
-                        format!("{primary_stem}/pdf/v{version}/")
-                    }
-                }
+                PathStrategy::CanonicalWithRedirects => format!("{primary_stem}/pdf/v{version}/"),
             })
             .collect();
         let slide_path = match plan.strategy {

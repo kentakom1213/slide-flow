@@ -149,10 +149,17 @@ fn render(project: &Project, slide: &Slide) -> anyhow::Result<String> {
                     ));
                 } else {
                     lines.push(format!(
+                        "    html: {}",
+                        join_url(
+                            &project.conf.base_url,
+                            &format!("{}/v{}/", plan.canonical_stem, version.conf.version)
+                        )
+                    ));
+                    lines.push(format!(
                         "    pdf: {}",
                         join_url(
                             &project.conf.base_url,
-                            &format!("{}_v{}.pdf", plan.canonical_stem, version.conf.version)
+                            &format!("{}/pdf/v{}/", plan.canonical_stem, version.conf.version)
                         )
                     ));
                 }
