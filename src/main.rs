@@ -2,8 +2,7 @@ use clap::Parser;
 use slide_flow::{
     parser::{
         Cmd, SlidesCommands,
-        SubCommands::{Add, Bib, Build, Index, Init, PreCommit, Slides, Version},
-        VersionCommands,
+        SubCommands::{Build, Init, Slide},
     },
     project::Project,
     subcommand::{
@@ -16,7 +15,6 @@ use slide_flow::{
         index::put_index,
         init::init,
         list::list,
-        pre_commit::{create_files, remove_cache},
         slide::show,
         version::bump,
     },
@@ -59,47 +57,6 @@ fn runner() -> anyhow::Result<()> {
     // run subcommand
     match parser.subcommand {
         Init => unreachable!(),
-        Add {
-            name,
-            secret,
-            draft,
-            type_,
-        } => add(&project, name, secret, draft, type_.unwrap_or_default()),
-        PreCommit => {
-            // remove cache
-            remove_cache(&project)?;
-            // create files
-            create_files(&project)
-        }
-        Index { dir, quiet } => {
-            if let Some(dir) = dir {
-                let target_slide = project.get_slide(&dir)?;
-
-                let toc = put_index(&target_slide)?;
-
-                if !quiet {
-                    println!("{toc}");
-                }
-
-                Ok(())
-            } else {
-                project
-                    .slides
-                    .iter()
-                    .inspect(|slide| {
-                        log::info!("Put index to slide: {}", slide.dir.to_string_lossy())
-                    })
-                    .try_for_each(|slide| {
-                        let _toc = put_index(slide)?;
-                        Ok(())
-                    })
-            }
-        }
-        Bib { dir } => {
-            let target_slide = project.get_slide(&dir)?;
-
-            update_bibliography(target_slide)
-        }
         Build {
             directories,
             concurrent,
@@ -187,12 +144,45 @@ fn runner() -> anyhow::Result<()> {
 
             Ok(())
         }
-        Version { command } => match command {
-            VersionCommands::Bump { dir } => bump(&project, dir),
-        },
-        Slides { command } => match command {
+        Slide { command } => match command {
+            SlidesCommands::Add {
+                name,
+                secret,
+                draft,
+                type_,
+            } => add(&project, name, secret, draft, type_.unwrap_or_default()),
             SlidesCommands::List => list(&project),
-            SlidesCommands::Detail { selector } => show(&project, &selector),
+            SlidesCommands::Show { selector } => show(&project, &selector),
+            SlidesCommands::Archive { dir } => bump(&project, dir),
+            SlidesCommands::Index { dir, quiet } => {
+                if let Some(dir) = dir {
+                    let target_slide = project.get_slide(&dir)?;
+
+                    let toc = put_index(&target_slide)?;
+
+                    if !quiet {
+                        println!("{toc}");
+                    }
+
+                    Ok(())
+                } else {
+                    project
+                        .slides
+                        .iter()
+                        .inspect(|slide| {
+                            log::info!("Put index to slide: {}", slide.dir.to_string_lossy())
+                        })
+                        .try_for_each(|slide| {
+                            let _toc = put_index(slide)?;
+                            Ok(())
+                        })
+                }
+            }
+            SlidesCommands::Bib { dir } => {
+                let target_slide = project.get_slide(&dir)?;
+
+                update_bibliography(target_slide)
+            }
         },
     }
 }
