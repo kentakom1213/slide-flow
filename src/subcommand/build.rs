@@ -10,7 +10,11 @@ use colored::Colorize;
 use tokio::{process::Command, runtime::Runtime, sync::Semaphore};
 
 use crate::{
-    config::{PathStrategy, SlideConf},
+    config::{ImagesConf, PathStrategy, SlideConf},
+    images::{
+        optimize_slide_images, prepare_optimized_markdown, relative_path, ImageRewriteMode,
+        OptimizeOptions, OptimizeReport,
+    },
     path::{legacy_file_stems, PublishPlan},
     project::Project,
     slide::Slide,
@@ -137,25 +141,53 @@ pub fn build(commands: impl Iterator<Item = BuildCommand>, max_concurrent: usize
     });
 }
 
+#[cfg(test)]
 fn prepare_marp_input(
     project: &Project,
     slide: &Slide,
 ) -> anyhow::Result<(PathBuf, Option<PathBuf>)> {
+    prepare_marp_input_with_options(
+        project,
+        slide,
+        &OptimizeOptions {
+            dry_run: false,
+            force: false,
+        },
+        false,
+        ImageRewriteMode::CacheRelativeToMarkdown,
+        None,
+    )
+}
+
+fn prepare_marp_input_with_options(
+    project: &Project,
+    slide: &Slide,
+    optimize_options: &OptimizeOptions,
+    optimize_images: bool,
+    rewrite_mode: ImageRewriteMode,
+    temp_dir: Option<&Path>,
+) -> anyhow::Result<(PathBuf, Option<PathBuf>)> {
     let original_path = slide.dir.join("slide.md");
     let suffix = project.conf.template.suffix.trim_end();
 
-    if suffix.is_empty() {
+    if suffix.is_empty() && (!optimize_images || !project.conf.images.enabled) {
         return Ok((original_path, None));
     }
 
     let mut contents = fs::read_to_string(&original_path)?;
+    if optimize_images {
+        contents =
+            prepare_optimized_markdown(project, slide, &contents, optimize_options, rewrite_mode)?
+                .0;
+    }
+
     contents.push_str("\n\n");
     contents.push_str(suffix);
     contents.push('\n');
 
-    let temp_path = slide
-        .dir
-        .join(format!(".slide-flow-build-{}.md", uuid::Uuid::new_v4()));
+    let temp_dir = temp_dir.unwrap_or(&slide.dir);
+    std::fs::create_dir_all(temp_dir)?;
+    let temp_path = temp_dir.join(format!(".slide-flow-build-{}.md", uuid::Uuid::new_v4()));
     fs::write(&temp_path, contents)?;
 
     Ok((temp_path.clone(), Some(temp_path)))
@@ -195,12 +227,36 @@ pub fn build_pdf_commands<'a>(
     project: &'a Project,
     slide: &'a Slide,
 ) -> anyhow::Result<Vec<BuildCommand>> {
+    build_pdf_commands_with_options(
+        project,
+        slide,
+        &OptimizeOptions {
+            dry_run: false,
+            force: false,
+        },
+        true,
+    )
+}
+
+pub fn build_pdf_commands_with_options<'a>(
+    project: &'a Project,
+    slide: &'a Slide,
+    optimize_options: &OptimizeOptions,
+    optimize_images: bool,
+) -> anyhow::Result<Vec<BuildCommand>> {
     let output_stems = PublishPlan::for_slide(project, slide).versioned_pdf_stems;
     if output_stems.is_empty() {
         return Ok(vec![]);
     }
 
-    let (input_path, temp_input) = prepare_marp_input(project, slide)?;
+    let (input_path, temp_input) = prepare_marp_input_with_options(
+        project,
+        slide,
+        optimize_options,
+        optimize_images,
+        ImageRewriteMode::CacheRelativeToMarkdown,
+        None,
+    )?;
     let make_command = |output_stem: String| {
         let mut cmd = Command::new(&project.conf.build.marp_binary);
 
@@ -248,12 +304,36 @@ pub fn build_pdf_latest_alias_commands<'a>(
     project: &'a Project,
     slide: &'a Slide,
 ) -> anyhow::Result<Vec<BuildCommand>> {
+    build_pdf_latest_alias_commands_with_options(
+        project,
+        slide,
+        &OptimizeOptions {
+            dry_run: false,
+            force: false,
+        },
+        true,
+    )
+}
+
+pub fn build_pdf_latest_alias_commands_with_options<'a>(
+    project: &'a Project,
+    slide: &'a Slide,
+    optimize_options: &OptimizeOptions,
+    optimize_images: bool,
+) -> anyhow::Result<Vec<BuildCommand>> {
     let output_files = PublishPlan::for_slide(project, slide).latest_pdf_aliases;
     if output_files.is_empty() {
         return Ok(vec![]);
     }
 
-    let (input_path, temp_input) = prepare_marp_input(project, slide)?;
+    let (input_path, temp_input) = prepare_marp_input_with_options(
+        project,
+        slide,
+        optimize_options,
+        optimize_images,
+        ImageRewriteMode::CacheRelativeToMarkdown,
+        None,
+    )?;
     let make_command = |output_file_name: String| {
         let mut cmd = Command::new(&project.conf.build.marp_binary);
 
@@ -300,13 +380,29 @@ pub fn build_html_commands<'a>(
     project: &'a Project,
     slide: &'a Slide,
 ) -> anyhow::Result<Vec<BuildCommand>> {
+    build_html_commands_with_options(
+        project,
+        slide,
+        &OptimizeOptions {
+            dry_run: false,
+            force: false,
+        },
+        true,
+    )
+}
+
+pub fn build_html_commands_with_options<'a>(
+    project: &'a Project,
+    slide: &'a Slide,
+    optimize_options: &OptimizeOptions,
+    optimize_images: bool,
+) -> anyhow::Result<Vec<BuildCommand>> {
     let output_paths = PublishPlan::for_slide(project, slide).html_paths;
     if output_paths.is_empty() {
         return Ok(vec![]);
     }
 
-    let (input_path, temp_input) = prepare_marp_input(project, slide)?;
-    let make_command = |output_stem: String| {
+    let make_command = |output_stem: &str, input_path: &Path| {
         let mut cmd = Command::new(&project.conf.build.marp_binary);
 
         cmd.arg("--theme-set")
@@ -332,18 +428,43 @@ pub fn build_html_commands<'a>(
         cmd
     };
 
-    let len = output_paths.len();
-
-    Ok(output_paths
+    output_paths
         .into_iter()
-        .enumerate()
-        .map(|(index, path)| BuildCommand::HTML {
-            dir: slide.dir.clone(),
-            command: make_command(path),
-            conf: slide.conf.clone(),
-            temp_input: cleanup_temp_input(index, len, &temp_input),
+        .map(|path| {
+            let output_root = project.root_dir.join(&project.conf.output_dir).join(&path);
+            let rewrite_mode = if optimize_images && project.conf.images.enabled {
+                let shared_images_dir = project
+                    .root_dir
+                    .join(&project.conf.output_dir)
+                    .join(optimized_html_images_dir());
+                ImageRewriteMode::PublicAssets {
+                    base_dir: relative_path(&output_root, &shared_images_dir),
+                }
+            } else {
+                ImageRewriteMode::CacheRelativeToMarkdown
+            };
+            let temp_dir = if optimize_images && project.conf.images.enabled {
+                Some(output_root.as_path())
+            } else {
+                None
+            };
+            let (input_path, temp_input) = prepare_marp_input_with_options(
+                project,
+                slide,
+                optimize_options,
+                optimize_images,
+                rewrite_mode,
+                temp_dir,
+            )?;
+
+            Ok(BuildCommand::HTML {
+                command: make_command(&path, &input_path),
+                temp_input,
+                conf: slide.conf.clone(),
+                dir: slide.dir.clone(),
+            })
         })
-        .collect())
+        .collect()
 }
 
 /// generate build commands for OGP images
@@ -351,12 +472,36 @@ pub fn build_ogp_image_commands<'a>(
     project: &'a Project,
     slide: &'a Slide,
 ) -> anyhow::Result<Vec<BuildCommand>> {
+    build_ogp_image_commands_with_options(
+        project,
+        slide,
+        &OptimizeOptions {
+            dry_run: false,
+            force: false,
+        },
+        true,
+    )
+}
+
+pub fn build_ogp_image_commands_with_options<'a>(
+    project: &'a Project,
+    slide: &'a Slide,
+    optimize_options: &OptimizeOptions,
+    optimize_images: bool,
+) -> anyhow::Result<Vec<BuildCommand>> {
     let output_paths = PublishPlan::for_slide(project, slide).ogp_image_paths;
     if output_paths.is_empty() {
         return Ok(vec![]);
     }
 
-    let (input_path, temp_input) = prepare_marp_input(project, slide)?;
+    let (input_path, temp_input) = prepare_marp_input_with_options(
+        project,
+        slide,
+        optimize_options,
+        optimize_images,
+        ImageRewriteMode::CacheRelativeToMarkdown,
+        None,
+    )?;
     let make_command = |output_path: String| {
         let mut cmd = Command::new(&project.conf.build.marp_binary);
 
@@ -432,6 +577,31 @@ pub fn copy_ipe_pdf(
 
 /// copy images to output directory
 pub fn copy_images_html(project: &Project, slide: &Slide) -> anyhow::Result<()> {
+    copy_images_html_with_options(project, slide, true)
+}
+
+pub fn copy_images_html_with_options(
+    project: &Project,
+    slide: &Slide,
+    optimize_images: bool,
+) -> anyhow::Result<()> {
+    let report = if optimize_images && project.conf.images.enabled {
+        Some(optimize_slide_images(
+            project,
+            slide,
+            &OptimizeOptions {
+                dry_run: false,
+                force: false,
+            },
+        )?)
+    } else {
+        None
+    };
+
+    if let Some(report) = &report {
+        copy_optimized_images(project, report)?;
+    }
+
     for stem in PublishPlan::for_slide(project, slide).html_paths {
         let target_images_dir = project
             .root_dir
@@ -442,9 +612,14 @@ pub fn copy_images_html(project: &Project, slide: &Slide) -> anyhow::Result<()> 
         if target_images_dir.exists() {
             std::fs::remove_dir_all(&target_images_dir)?;
         }
-        std::fs::create_dir_all(&target_images_dir)?;
 
-        copy_images(slide, &target_images_dir)?;
+        let output_root = project.root_dir.join(&project.conf.output_dir).join(&stem);
+        remove_legacy_html_image_cache(&output_root, &project.conf.images)?;
+
+        if report.is_none() {
+            std::fs::create_dir_all(&target_images_dir)?;
+            copy_images(slide, &target_images_dir)?;
+        }
     }
 
     Ok(())
@@ -660,12 +835,51 @@ fn copy_images(slide: &Slide, target_images_dir: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn remove_legacy_html_image_cache(
+    output_root: &Path,
+    images_conf: &ImagesConf,
+) -> anyhow::Result<()> {
+    let legacy_target_cache_dir = output_root.join(&images_conf.cache_dir);
+    if legacy_target_cache_dir.exists() {
+        std::fs::remove_dir_all(&legacy_target_cache_dir)?;
+    }
+
+    Ok(())
+}
+
+fn copy_optimized_images(project: &Project, report: &OptimizeReport) -> anyhow::Result<()> {
+    if report.is_empty() {
+        return Ok(());
+    }
+
+    let target_dir = project
+        .root_dir
+        .join(&project.conf.output_dir)
+        .join(optimized_html_images_dir());
+    std::fs::create_dir_all(&target_dir)?;
+
+    for image in &report.images {
+        let Some(file_name) = image.cache_path().file_name() else {
+            continue;
+        };
+        std::fs::copy(image.cache_path(), target_dir.join(file_name))?;
+    }
+
+    Ok(())
+}
+
+fn optimized_html_images_dir() -> PathBuf {
+    PathBuf::from("images").join("optimized")
+}
+
 #[cfg(test)]
 mod test_build {
     use super::{
         build_ogp_image_commands, prepare_marp_input, write_alias_redirects, BuildCommand,
     };
-    use crate::config::{BuildConf, PathStrategy, ProjectConf, SlideConf, SlideType, TemplateConf};
+    use crate::config::{
+        BuildConf, ImagesConf, PathStrategy, ProjectConf, SlideConf, SlideType, TemplateConf,
+    };
     use crate::project::Project;
     use crate::slide::Slide;
 
@@ -689,6 +903,7 @@ mod test_build {
                     suffix: String::new(),
                 },
                 build: BuildConf::default(),
+                images: ImagesConf::default(),
             },
             slides: vec![],
         };
@@ -734,6 +949,7 @@ mod test_build {
                     suffix: "<script src=\"/shared.js\"></script>".to_string(),
                 },
                 build: BuildConf::default(),
+                images: ImagesConf::default(),
             },
             slides: vec![],
         };
@@ -781,6 +997,7 @@ mod test_build {
                     marp_binary: "marp".to_string(),
                     path_strategy: PathStrategy::CanonicalWithRedirects,
                 },
+                images: ImagesConf::default(),
             },
             slides: vec![],
         };
@@ -870,6 +1087,7 @@ mod test_build {
                 output_dir: "output".to_string(),
                 template: TemplateConf::default(),
                 build: BuildConf::default(),
+                images: ImagesConf::default(),
             },
             slides: vec![],
         };

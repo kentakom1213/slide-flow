@@ -18,6 +18,9 @@ pub struct ProjectConf {
     pub template: TemplateConf,
     /// build configuration
     pub build: BuildConf,
+    /// image optimization configuration
+    #[serde(default)]
+    pub images: ImagesConf,
 }
 
 impl Default for ProjectConf {
@@ -30,8 +33,162 @@ impl Default for ProjectConf {
             output_dir: "output".to_string(),
             template: TemplateConf::default(),
             build: BuildConf::default(),
+            images: ImagesConf::default(),
         }
     }
+}
+
+/// image optimization configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ImagesConf {
+    /// enable image optimization
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    /// cache directory relative to the project root
+    #[serde(default = "default_image_cache_dir")]
+    pub cache_dir: String,
+    /// optimization mode
+    #[serde(default)]
+    pub mode: ImageOptimizeMode,
+    /// strip metadata when supported by the optimizer
+    #[serde(default = "default_true")]
+    pub strip_metadata: bool,
+    /// fail instead of copying through when an optimizer is missing
+    #[serde(default)]
+    pub fail_on_missing_tool: bool,
+    /// PNG optimizer configuration
+    #[serde(default)]
+    pub png: PngImageConf,
+    /// JPEG optimizer configuration
+    #[serde(default)]
+    pub jpeg: JpegImageConf,
+    /// SVG optimizer configuration
+    #[serde(default)]
+    pub svg: SvgImageConf,
+    /// WebP handling configuration
+    #[serde(default)]
+    pub webp: WebpImageConf,
+}
+
+impl Default for ImagesConf {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            cache_dir: default_image_cache_dir(),
+            mode: ImageOptimizeMode::Lossless,
+            strip_metadata: true,
+            fail_on_missing_tool: false,
+            png: PngImageConf::default(),
+            jpeg: JpegImageConf::default(),
+            svg: SvgImageConf::default(),
+            webp: WebpImageConf::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ImageOptimizeMode {
+    #[default]
+    Lossless,
+    Lossy,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PngImageConf {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default = "default_oxipng")]
+    pub tool: String,
+    #[serde(default = "default_png_level")]
+    pub level: u8,
+}
+
+impl Default for PngImageConf {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            tool: default_oxipng(),
+            level: default_png_level(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JpegImageConf {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default = "default_jpegoptim")]
+    pub tool: String,
+    #[serde(default = "default_jpeg_quality")]
+    pub quality: u8,
+}
+
+impl Default for JpegImageConf {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            tool: default_jpegoptim(),
+            quality: default_jpeg_quality(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SvgImageConf {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default = "default_svgo")]
+    pub tool: String,
+}
+
+impl Default for SvgImageConf {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            tool: default_svgo(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WebpImageConf {
+    #[serde(default)]
+    pub enabled: bool,
+}
+
+impl Default for WebpImageConf {
+    fn default() -> Self {
+        Self { enabled: false }
+    }
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_image_cache_dir() -> String {
+    ".slide-flow/cache/images".to_string()
+}
+
+fn default_oxipng() -> String {
+    "oxipng".to_string()
+}
+
+fn default_jpegoptim() -> String {
+    "jpegoptim".to_string()
+}
+
+fn default_svgo() -> String {
+    "svgo".to_string()
+}
+
+fn default_png_level() -> u8 {
+    4
+}
+
+fn default_jpeg_quality() -> u8 {
+    85
 }
 
 /// template configuration

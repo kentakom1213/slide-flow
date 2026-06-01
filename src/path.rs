@@ -121,6 +121,7 @@ mod tests {
                     marp_binary: "marp".to_string(),
                     path_strategy,
                 },
+                images: Default::default(),
             },
             slides: vec![],
         }

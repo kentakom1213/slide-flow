@@ -1,5 +1,6 @@
 pub mod config;
 pub mod contents;
+pub mod images;
 pub mod parser;
 pub mod path;
 pub mod project;
