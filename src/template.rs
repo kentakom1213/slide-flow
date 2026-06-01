@@ -2,19 +2,81 @@
 
 use askama::Template;
 
-use crate::config::{ProjectConf, SlideConf};
+use crate::{
+    config::{PathStrategy, ProjectConf},
+    path::PublishPlan,
+    project::Project,
+    slide::Slide,
+};
+
+#[derive(Debug, Clone)]
+pub struct PublishedSlide {
+    pub name: String,
+    pub description: String,
+    pub draft: bool,
+    pub is_marp: bool,
+    pub public: bool,
+    pub slide_path: String,
+    pub pdf_path: String,
+    pub version_pdf_paths: Vec<String>,
+}
+
+impl PublishedSlide {
+    pub fn from_slide(project: &Project, slide: &Slide) -> Self {
+        let plan = PublishPlan::for_slide(project, slide);
+        let primary_stem = match plan.strategy {
+            PathStrategy::Legacy => plan.canonical_stem.clone(),
+            PathStrategy::CanonicalWithRedirects => plan
+                .alias_stems
+                .first()
+                .cloned()
+                .unwrap_or_else(|| plan.canonical_stem.clone()),
+        };
+        let public = match plan.strategy {
+            PathStrategy::Legacy => slide.conf.secret.is_none(),
+            PathStrategy::CanonicalWithRedirects => {
+                slide.conf.secret.is_none() || !plan.alias_stems.is_empty()
+            }
+        };
+        let pdf_path = match plan.strategy {
+            PathStrategy::Legacy => format!("{primary_stem}.pdf"),
+            PathStrategy::CanonicalWithRedirects => format!("{primary_stem}/pdf/"),
+        };
+        let version_pdf_paths = (1..=slide.conf.version)
+            .map(|version| match plan.strategy {
+                PathStrategy::Legacy => format!("{primary_stem}_v{version}.pdf"),
+                PathStrategy::CanonicalWithRedirects => format!("{primary_stem}/pdf/v{version}/"),
+            })
+            .collect();
+        let slide_path = match plan.strategy {
+            PathStrategy::Legacy => primary_stem.clone(),
+            PathStrategy::CanonicalWithRedirects => format!("{primary_stem}/"),
+        };
+
+        Self {
+            name: slide.conf.name.clone(),
+            description: slide.conf.description.clone().unwrap_or_default(),
+            draft: slide.conf.draft.unwrap_or(false),
+            is_marp: slide.conf.type_.is_marp(),
+            public,
+            slide_path,
+            pdf_path,
+            version_pdf_paths,
+        }
+    }
+}
 
 #[derive(Template)]
 #[template(path = "index.html")]
 pub struct IndexTemplate<'a> {
-    pub slides: &'a [SlideConf],
+    pub slides: &'a [PublishedSlide],
 }
 
 #[derive(Template)]
 #[template(path = "readme.md")]
 pub struct ReadmeTemplate<'a> {
     pub project: &'a ProjectConf,
-    pub slides: &'a [SlideConf],
+    pub slides: &'a [PublishedSlide],
 }
 
 #[cfg(test)]
@@ -22,54 +84,50 @@ mod test_template {
     use askama::Template;
 
     use super::*;
-    use crate::config::{BuildConf, SlideConf, SlideType, TemplateConf};
+    use crate::config::{BuildConf, TemplateConf};
 
     #[test]
     fn test_index() {
         let slides = vec![
-            SlideConf {
+            PublishedSlide {
                 name: "title1".to_string(),
-                version: 1,
-                secret: None,
-                custom_path: None,
-                draft: None,
-                description: None,
-                title_prefix: None,
-                type_: SlideType::Marp,
-                bibliography: None,
+                description: String::new(),
+                draft: false,
+                is_marp: true,
+                public: true,
+                slide_path: "title1".to_string(),
+                pdf_path: "title1.pdf".to_string(),
+                version_pdf_paths: vec!["title1_v1.pdf".to_string()],
             },
-            SlideConf {
+            PublishedSlide {
                 name: "title2".to_string(),
-                version: 1,
-                secret: Some("uuid".to_string()),
-                custom_path: None,
-                draft: None,
-                description: None,
-                title_prefix: Some("#".to_string()),
-                type_: SlideType::Ipe,
-                bibliography: None,
+                description: String::new(),
+                draft: false,
+                is_marp: false,
+                public: false,
+                slide_path: "uuid".to_string(),
+                pdf_path: "uuid.pdf".to_string(),
+                version_pdf_paths: vec!["uuid_v1.pdf".to_string()],
             },
-            SlideConf {
+            PublishedSlide {
                 name: "title3".to_string(),
-                version: 1,
-                secret: None,
-                custom_path: Some(vec!["path".to_string()]),
-                draft: Some(true),
-                description: None,
-                title_prefix: Some("##".to_string()),
-                type_: SlideType::Marp,
-                bibliography: None,
+                description: String::new(),
+                draft: true,
+                is_marp: true,
+                public: true,
+                slide_path: "path".to_string(),
+                pdf_path: "path.pdf".to_string(),
+                version_pdf_paths: vec!["path_v1.pdf".to_string()],
             },
-            SlideConf {
+            PublishedSlide {
                 name: "title4".to_string(),
-                version: 1,
-                secret: None,
-                custom_path: None,
-                draft: Some(false),
-                description: Some("タイトル4".to_string()),
-                title_prefix: Some("###".to_string()),
-                type_: SlideType::Marp,
-                bibliography: None,
+                description: "タイトル4".to_string(),
+                draft: false,
+                is_marp: true,
+                public: true,
+                slide_path: "title4".to_string(),
+                pdf_path: "title4.pdf".to_string(),
+                version_pdf_paths: vec!["title4_v1.pdf".to_string()],
             },
         ];
         let template = IndexTemplate { slides: &slides };
@@ -88,6 +146,7 @@ mod test_template {
         let build_conf = BuildConf {
             theme_dir: String::new(),
             marp_binary: String::new(),
+            path_strategy: Default::default(),
         };
 
         let project = ProjectConf {
@@ -100,49 +159,45 @@ mod test_template {
         };
 
         let slides = vec![
-            SlideConf {
+            PublishedSlide {
                 name: "title1".to_string(),
-                version: 1,
-                secret: None,
-                custom_path: None,
-                draft: None,
-                description: None,
-                title_prefix: None,
-                type_: SlideType::Marp,
-                bibliography: None,
+                description: String::new(),
+                draft: false,
+                is_marp: true,
+                public: true,
+                slide_path: "title1".to_string(),
+                pdf_path: "title1.pdf".to_string(),
+                version_pdf_paths: vec!["title1_v1.pdf".to_string()],
             },
-            SlideConf {
+            PublishedSlide {
                 name: "title2".to_string(),
-                version: 1,
-                secret: Some("uuid".to_string()),
-                custom_path: None,
-                draft: None,
-                description: None,
-                title_prefix: Some("#".to_string()),
-                type_: SlideType::Ipe,
-                bibliography: None,
+                description: String::new(),
+                draft: false,
+                is_marp: false,
+                public: false,
+                slide_path: "uuid".to_string(),
+                pdf_path: "uuid.pdf".to_string(),
+                version_pdf_paths: vec!["uuid_v1.pdf".to_string()],
             },
-            SlideConf {
+            PublishedSlide {
                 name: "title3".to_string(),
-                version: 1,
-                secret: None,
-                custom_path: Some(vec!["path".to_string()]),
-                draft: Some(true),
-                description: None,
-                title_prefix: Some("##".to_string()),
-                type_: SlideType::Marp,
-                bibliography: None,
+                description: String::new(),
+                draft: true,
+                is_marp: true,
+                public: true,
+                slide_path: "path".to_string(),
+                pdf_path: "path.pdf".to_string(),
+                version_pdf_paths: vec!["path_v1.pdf".to_string()],
             },
-            SlideConf {
+            PublishedSlide {
                 name: "title4".to_string(),
-                version: 1,
-                secret: None,
-                custom_path: None,
-                draft: Some(false),
-                description: Some("タイトル4".to_string()),
-                title_prefix: Some("###".to_string()),
-                type_: SlideType::Marp,
-                bibliography: None,
+                description: "タイトル4".to_string(),
+                draft: false,
+                is_marp: true,
+                public: true,
+                slide_path: "title4".to_string(),
+                pdf_path: "title4.pdf".to_string(),
+                version_pdf_paths: vec!["title4_v1.pdf".to_string()],
             },
         ];
 

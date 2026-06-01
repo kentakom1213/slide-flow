@@ -80,28 +80,19 @@
     <div class="container">
       <h1>Slides</h1>
 
-      {% for slide in slides %} {% if slide.secret.is_none() &&
-      !slide.draft.unwrap_or(false) %}
+      {% for slide in slides %} {% if slide.public && !slide.draft %}
       <div class="slide-card">
         <div class="slide-title">{{ slide.name }}</div>
-        {% if slide.description.is_some() %}
-        <div class="slide-description">
-          {{ slide.description.as_ref().unwrap() }}
-        </div>
+        {% if !slide.description.is_empty() %}
+        <div class="slide-description">{{ slide.description }}</div>
         {% endif %}
         <div class="button-group">
-          {% if slide.type_.is_marp() %}
-          <a
-            class="link-button"
-            href="./{{ slide.secret.as_ref().unwrap_or(slide.name) }}"
-          >
+          {% if slide.is_marp %}
+          <a class="link-button" href="./{{ slide.slide_path }}">
             Slide
           </a>
           {% endif %}
-          <a
-            class="pdf-button"
-            href="./{{ slide.secret.as_ref().unwrap_or(slide.name) }}.pdf"
-          >
+          <a class="pdf-button" href="./{{ slide.pdf_path }}">
             PDF
           </a>
         </div>

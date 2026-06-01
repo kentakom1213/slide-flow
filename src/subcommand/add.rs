@@ -49,6 +49,7 @@ pub fn add(
         title_prefix: None,
         type_,
         bibliography: Some(vec![]),
+        path_strategy: None,
     };
 
     let conf_str = toml::to_string(&conf)?;

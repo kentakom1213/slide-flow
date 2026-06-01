@@ -1,241 +1,318 @@
 # slide-flow
 
-`slide-flow` is a powerful and efficient command-line interface (CLI) tool written in Rust, designed to streamline the creation, management, and publishing of presentations authored in [Marp](https://marp.app/) markdown format. It automates common tasks such as project initialization, slide creation, indexing, and building, making your slide workflow more productive.
+`slide-flow` is a Rust CLI for managing slide decks authored with Marp markdown or Ipe PDF sources. It creates slide workspaces, manages versions, builds HTML / PDF / OGP artifacts, generates slide indexes, and supports migration from legacy public paths to canonical UUID-backed paths with redirects.
 
-## Features
+[日本語版](README-ja.md)
 
-- **Project Initialization**: Quickly set up a new `slide-flow` project with essential directories and a default configuration file.
-- **Slide Management**: Easily add new slides to your project.
-- **Version Management**: Archive previous slide versions with `version bump`.
-- **Automated Indexing**: Generate an `index.html` and `README.md` that list your non-draft slides.
-- **Efficient Building**: Compile your Marp markdown slides into HTML and PDF formats, with concurrent build capabilities.
-- **Cache Management**: Clean up generated build artifacts to maintain a tidy project.
-- **Customizable**: Configure project-wide settings, slide templates, and build options via `config.toml`.
+## Requirements
+
+- Rust and Cargo
+- Marp CLI available as `marp`, or another command configured in `config.toml`
+- Ipe is optional, only needed when using `type = "ipe"`
 
 ## Installation
-
-To install `slide-flow`, ensure you have [Rust and Cargo](https://www.rust-lang.org/tools/install) installed. Then, run the following command:
 
 ```bash
 cargo install --git https://github.com/kentakom1213/slide-flow -f
 ```
 
-## Usage
-
-Navigate to your desired project directory and use the `slide-flow` commands.
-
-### Initialize a New Project
-
-To start a new `slide-flow` project in the current directory:
+## Quick Start
 
 ```bash
 slide-flow init
+slide-flow slide add my-first-slide
+slide-flow slide index --dir src/my-first-slide
+slide-flow build src/my-first-slide
+slide-flow slide list
 ```
 
-This command will create the following basic directory structure:
+The generated output is written to `output_dir` from `config.toml`. The default is `output/`.
 
+## Commands
+
+Top-level commands:
+
+```txt
+slide-flow init
+slide-flow build <DIR>...
+slide-flow slide <COMMAND>
+slide-flow migrate <COMMAND>
 ```
+
+Slide commands:
+
+```txt
+slide-flow slide add <NAME> [--secret <true|false>] [--draft <true|false>] [--type <marp|ipe>]
+slide-flow slide list
+slide-flow slide show <NUMBER|DIR>
+slide-flow slide archive <DIR>
+slide-flow slide index [--dir <DIR>] [--quiet]
+slide-flow slide bib <DIR>
+```
+
+Migration commands:
+
+```txt
+slide-flow migrate plan [DIR]
+slide-flow migrate status
+slide-flow migrate apply <DIR> --metadata-only
+slide-flow migrate apply <DIR> --redirects-only
+slide-flow migrate apply <DIR> --artifacts [--concurrent 4]
+slide-flow migrate apply <DIR> --remove-legacy-artifacts
+```
+
+## Project Layout
+
+```txt
 .
 ├── .marp/
 │   └── themes/
-│       └── .gitkeep
 ├── src/
-│   └── .gitkeep
+│   └── my-first-slide/
+│       ├── images/
+│       ├── slide.md
+│       ├── slide.toml
+│       └── v1/
+│           ├── images/
+│           ├── slide.md
+│           └── slide.toml
+├── output/
+│   ├── index.html
+│   ├── <stem>/
+│   │   └── index.html
+│   └── <stem>_v1.pdf
 └── config.toml
 ```
 
-The `config.toml` file will be pre-populated with default settings, which you can customize:
+## Creating Slides
+
+Create a Marp slide:
+
+```bash
+slide-flow slide add my-first-slide
+```
+
+Create a draft:
+
+```bash
+slide-flow slide add work-in-progress --draft true
+```
+
+Create an Ipe slide:
+
+```bash
+slide-flow slide add figure-talk --type ipe
+```
+
+Each slide lives under `src/<name>/` and has a `slide.toml`. Marp slides use `slide.md`; Ipe slides use `slide.ipe` and `slide.pdf`.
+
+## Managing Slides
+
+List slides:
+
+```bash
+slide-flow slide list
+```
+
+Show metadata and published URLs:
+
+```bash
+slide-flow slide show 1
+slide-flow slide show src/my-first-slide
+```
+
+Archive the current version before starting a new revision:
+
+```bash
+slide-flow slide archive src/my-first-slide
+```
+
+This copies the current slide files into `src/my-first-slide/v<version>/`, increments `version`, and recreates the working slide files.
+
+## Indexing and Bibliography
+
+Add slide numbers and a table of contents to one slide:
+
+```bash
+slide-flow slide index --dir src/my-first-slide
+```
+
+Index all slides:
+
+```bash
+slide-flow slide index
+```
+
+Update bibliography entries for a slide:
+
+```bash
+slide-flow slide bib src/my-first-slide
+```
+
+## Building
+
+Build one or more slides:
+
+```bash
+slide-flow build src/my-first-slide
+slide-flow build src/my-first-slide src/another-slide
+slide-flow build src/my-first-slide --concurrent 8
+```
+
+For Marp slides, `slide-flow` invokes Marp and builds HTML and PDF artifacts. For Ipe slides, it copies `slide.pdf` into the output directory. Archived versions under `src/<slide>/v*/` are built as versioned PDFs; with `canonical-with-redirects`, archived Marp versions also get versioned HTML and OGP images.
+
+## Path Strategies
+
+`slide-flow` supports two path strategies:
+
+- `legacy`: keeps the historical behavior. All `custom_path` values and the canonical stem are treated as real output locations.
+- `canonical-with-redirects`: writes real artifacts under the canonical stem and writes redirect HTML under aliases.
+
+The strategy is resolved in this order:
+
+```txt
+slide.toml
+> config.toml
+> default legacy
+```
+
+Project default:
 
 ```toml
-# config.toml
-name = "my-slide-project"
-author = "Your Name"
-base_url = "[https://example.com/](https://example.com/)"
+[build]
+theme_dir = ".marp/themes"
+marp_binary = "marp"
+path_strategy = "legacy"
+```
+
+Slide override:
+
+```toml
+name = "my-first-slide"
+version = 1
+secret = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+custom_path = ["my-first-slide"]
+path_strategy = "canonical-with-redirects"
+```
+
+### Legacy Output
+
+For a slide with `custom_path = ["my-first-slide"]` and `secret = "<uuid>"`, legacy builds write real artifacts for both stems:
+
+```txt
+output/my-first-slide/index.html
+output/<uuid>/index.html
+output/my-first-slide.pdf
+output/<uuid>.pdf
+output/my-first-slide_v1.pdf
+output/<uuid>_v1.pdf
+```
+
+### Canonical With Redirects Output
+
+With `canonical-with-redirects`, real artifacts are written under the canonical stem. If `secret` exists, the canonical stem is the UUID. Otherwise it is `name`.
+
+```txt
+output/<uuid>/index.html
+output/<uuid>/ogp.png
+output/<uuid>/v1/index.html
+output/<uuid>/v1/ogp.png
+output/<uuid>_v1.pdf
+output/<uuid>/pdf/index.html
+output/<uuid>/pdf/v1/index.html
+```
+
+Aliases become redirect HTML:
+
+```txt
+output/my-first-slide/index.html
+output/my-first-slide/v1/index.html
+output/my-first-slide/pdf/index.html
+output/my-first-slide/pdf/v1/index.html
+```
+
+The public README and `output/index.html` prefer alias URLs. Redirect HTML includes canonical links, Open Graph metadata, Twitter Card metadata, and a JavaScript redirect.
+
+PDF URLs under both canonical and alias paths are HTML redirect pages. This lets social crawlers read OGP metadata before users are redirected to the real PDF.
+
+## Migration
+
+Use migration commands when moving existing slides from `legacy` to `canonical-with-redirects`.
+
+Preview planned changes:
+
+```bash
+slide-flow migrate plan
+slide-flow migrate plan src/my-first-slide
+```
+
+Check current artifact status:
+
+```bash
+slide-flow migrate status
+```
+
+Update only `slide.toml`:
+
+```bash
+slide-flow migrate apply src/my-first-slide --metadata-only
+```
+
+Generate only alias redirect HTML:
+
+```bash
+slide-flow migrate apply src/my-first-slide --redirects-only
+```
+
+Build canonical artifacts and redirects:
+
+```bash
+slide-flow migrate apply src/my-first-slide --artifacts
+```
+
+Remove legacy alias artifacts:
+
+```bash
+slide-flow migrate apply src/my-first-slide --remove-legacy-artifacts
+```
+
+`--remove-legacy-artifacts` is intentionally explicit. It removes alias-side legacy PDFs and alias-side copied images, while keeping alias redirect directories.
+
+## Configuration
+
+Example `config.toml`:
+
+```toml
+name = "My Slides"
+author = "Kenta Komoto"
+base_url = "https://example.com/slides/"
 output_dir = "output"
 
 [template]
-slide = ""
+slide = "# New Slide\n"
 index = ""
 suffix = ""
 
 [build]
 theme_dir = ".marp/themes"
 marp_binary = "marp"
+path_strategy = "legacy"
 ```
 
-### Add a New Slide
-
-To add a new slide named `my-first-slide`:
-
-```bash
-slide-flow add my-first-slide
-```
-
-You can also specify if the slide should be `secret` (generated with a UUID-based path) or a `draft` (not published by default):
-
-```bash
-slide-flow add my-secret-slide --secret true --draft false
-slide-flow add my-draft-slide --draft true
-```
-
-This will create a new directory `src/my-first-slide/` with `slide.md` and `slide.toml`.
-
-### List Managed Slides
-
-Show the slides currently managed in the project:
-
-```bash
-slide-flow slides list
-```
-
-The command prints an aligned table with these columns:
-
-- `name`
-- `version`
-- `type`
-- `draft`
-
-### Show Slide Details
-
-Show slide details by list number or slide path:
-
-```bash
-slide-flow slide 1
-slide-flow slide src/my-first-slide
-```
-
-The detail view includes slide metadata and URLs for each version.
-
-### Bump Slide Version
-
-Use this command before starting a new revision of an existing slide:
-
-```bash
-slide-flow version bump --dir src/my-first-slide
-```
-
-This command:
-
-- archives current files into `src/my-first-slide/v<version>/`
-- increments `version` in `src/my-first-slide/slide.toml`
-- recreates the working files under `src/my-first-slide/`
-
-### Prepare for Commit (Pre-Commit)
-
-Run this command to update the `README.md` and `index.html` with the latest slide list and clean up old build caches.
-
-```bash
-slide-flow pre-commit
-```
-
-### Index Slides
-
-This command puts slide numbers into your markdown files and generates a table of contents.
-You can specify a single slide or process all of them.
-
-```bash
-# Index a specific slide
-slide-flow index --dir src/my-first-slide
-
-# Index all slides
-slide-flow index
-```
-
-### Build Slides
-
-Compile your slides into `HTML` and `PDF` formats. Specify the directories containing the `slide.md` files.
-
-```bash
-# Build a specific slide
-slide-flow build src/my-first-slide
-
-# Build multiple slides
-slide-flow build src/my-first-slide src/another-slide
-
-# Build with a custom concurrency limit (default is 4)
-slide-flow build src/my-first-slide --concurrent 8
-```
-
-The built output will be placed in the directory specified by `output_dir` in your `config.toml` (default: `output/`).
-
-- Latest HTML is generated at `output/<stem>/index.html`
-- PDF files are generated with version suffix: `output/<stem>_v<version>.pdf`
-- Archived versions under `src/<slide>/v*/` are also built as versioned PDFs
-
-## Project Structure
-
-A typical `slide-flow` project looks like this:
-
-```
-.
-├── .marp/
-│   └── themes/             # Marp themes
-│       └── my-theme.css
-├── src/
-│   ├── slide1/             # Individual slide directory
-│   │   ├── images/         # Images specific to slide1
-│   │   │   └── .gitkeep
-│   │   ├── slide.md        # Marp markdown for slide1
-│   │   ├── slide.toml      # Configuration for slide1
-│   │   └── v1/             # Archived version directory
-│   │       ├── images/
-│   │       ├── slide.md
-│   │       └── slide.toml
-│   └── slide2/
-│       └── ...
-├── output/                 # Default output directory for built slides
-│   ├── index.html          # Main index page (generated)
-│   ├── slide1/
-│   │   └── index.html      # HTML output for slide1
-│   ├── slide1_v2.pdf       # PDF output for current version
-│   └── slide1_v1.pdf       # PDF output for archived version
-└── config.toml             # Project-wide configuration
-```
-
-## Configuration
-
-The `config.toml` file at the root of your project controls `slide-flow`'s behavior.
+Example `slide.toml`:
 
 ```toml
-# Example config.toml
-name = "My Awesome Slides"      # Project title
-author = "Kenta Komoto"         # Your name
-base_url = "[https://slides.example.com/](https://slides.example.com/)" # Base URL for generated links
-output_dir = "public"           # Directory for compiled output
-
-[template]
-slide = "# New Slide\n\n\n\n" # Default content for new slide.md
-index = "<h1>My Slides</h1>"    # Default content for index.html (when generated)
-suffix = ""   # Content appended to slides (e.g., for global footers)
-
-[build]
-theme_dir = ".marp/themes"      # Path to your Marp themes
-marp_binary = "marp"            # Command to invoke Marp CLI
+name = "my-first-slide"
+version = 1
+secret = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+custom_path = ["my-first-slide"]
+draft = false
+description = "An introduction to the project."
+title_prefix = "#"
+type = "marp"
+path_strategy = "canonical-with-redirects"
 ```
-
-Each slide can also have its own `slide.toml` file, e.g., `src/slide1/slide.toml`:
-
-```toml
-# Example slide.toml
-name = "Introduction to Graph Algorithms" # Display name of the slide
-version = 1                              # Slide version
-secret = "some-uuid-here"                # Optional UUID for secret access
-custom_path = ["graph-algos"]            # Optional custom URL path segments
-draft = false                            # Set to true to exclude from public builds
-description = "An overview of common graph algorithms." # Description for index pages
-title_prefix = "# "                      # Marp title prefix (e.g., for indexing)
-```
-
-`version` is used by PDF naming. Here `stem` is `secret` if present, otherwise `name`:
-
-- HTML route (latest): `/<stem>`
-- PDF latest route: `/<stem>.pdf`
-- PDF versioned route: `/<stem>_v<version>.pdf`
-
-## Contributing
-
-Contributions are welcome\! If you find a bug or have a feature request, please open an issue or submit a pull request on the [GitHub repository](https://www.google.com/search?q=https://github.com/kentakom1213/slide-flow).
 
 ## License
 
-`slide-flow` is licensed under the MIT License. See the `LICENSE` file for details.
+`slide-flow` is licensed under the MIT License. See [LICENSE](LICENSE) for details.

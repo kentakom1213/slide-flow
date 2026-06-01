@@ -7,7 +7,7 @@ use anyhow::bail;
 use itertools::Itertools;
 
 use crate::{
-    config::{ProjectConf, SlideConf},
+    config::{PathStrategy, ProjectConf, SlideConf},
     slide::Slide,
 };
 
@@ -120,6 +120,13 @@ impl Project {
         let slide = self.get_slide(dir)?;
         let root_dir = root_slide_dir(&slide.dir);
         Self::get_slide_inner(&self.root_dir, &root_dir)
+    }
+
+    pub fn path_strategy(&self, slide: &Slide) -> PathStrategy {
+        slide
+            .conf
+            .path_strategy
+            .unwrap_or(self.conf.build.path_strategy)
     }
 
     /// get archived versions of a slide (src/<slide>/v*)

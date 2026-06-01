@@ -2,11 +2,7 @@ use std::path::Path;
 
 use anyhow::bail;
 
-use crate::{
-    project::Project,
-    slide::Slide,
-    subcommand::build::{make_file_stems, make_latest_pdf_aliases, make_versioned_stems},
-};
+use crate::{config::PathStrategy, path::PublishPlan, project::Project, slide::Slide};
 
 pub fn show(project: &Project, selector: &str) -> anyhow::Result<()> {
     let slide = resolve_selector(project, selector)?;
@@ -86,28 +82,88 @@ fn render(project: &Project, slide: &Slide) -> anyhow::Result<String> {
 
     for version in versions {
         lines.push(format!("  v{}:", version.conf.version));
+        let plan = PublishPlan::for_slide(project, &version);
+        let primary_alias = plan.alias_stems.first();
 
         if version.dir == slide.dir {
-            for url in make_file_stems(&version)
-                .into_iter()
-                .map(|stem| join_url(&project.conf.base_url, &stem))
-            {
-                lines.push(format!("    html: {url}"));
-            }
+            match plan.strategy {
+                PathStrategy::Legacy => {
+                    for url in plan
+                        .html_stems
+                        .iter()
+                        .map(|stem| join_url(&project.conf.base_url, &stem))
+                    {
+                        lines.push(format!("    html: {url}"));
+                    }
 
-            for url in make_latest_pdf_aliases(&version)
-                .into_iter()
-                .map(|file| join_url(&project.conf.base_url, &file))
-            {
-                lines.push(format!("    pdf_latest: {url}"));
+                    for url in plan
+                        .latest_pdf_aliases
+                        .iter()
+                        .map(|file| join_url(&project.conf.base_url, &file))
+                    {
+                        lines.push(format!("    pdf_latest: {url}"));
+                    }
+                }
+                PathStrategy::CanonicalWithRedirects => {
+                    let html_path = primary_alias.unwrap_or(&plan.canonical_stem);
+                    lines.push(format!(
+                        "    html: {}",
+                        join_url(&project.conf.base_url, &format!("{html_path}/"))
+                    ));
+
+                    if let Some(alias) = primary_alias {
+                        lines.push(format!(
+                            "    pdf_latest: {}",
+                            join_url(&project.conf.base_url, &format!("{alias}/pdf/"))
+                        ));
+                    }
+                }
             }
         }
 
-        for url in make_versioned_stems(&version)
-            .into_iter()
-            .map(|stem| join_url(&project.conf.base_url, &format!("{stem}.pdf")))
-        {
-            lines.push(format!("    pdf: {url}"));
+        match plan.strategy {
+            PathStrategy::Legacy => {
+                for url in plan
+                    .versioned_pdf_stems
+                    .iter()
+                    .map(|stem| join_url(&project.conf.base_url, &format!("{stem}.pdf")))
+                {
+                    lines.push(format!("    pdf: {url}"));
+                }
+            }
+            PathStrategy::CanonicalWithRedirects => {
+                if let Some(alias) = primary_alias {
+                    lines.push(format!(
+                        "    html: {}",
+                        join_url(
+                            &project.conf.base_url,
+                            &format!("{alias}/v{}/", version.conf.version)
+                        )
+                    ));
+                    lines.push(format!(
+                        "    pdf: {}",
+                        join_url(
+                            &project.conf.base_url,
+                            &format!("{alias}/pdf/v{}/", version.conf.version)
+                        )
+                    ));
+                } else {
+                    lines.push(format!(
+                        "    html: {}",
+                        join_url(
+                            &project.conf.base_url,
+                            &format!("{}/v{}/", plan.canonical_stem, version.conf.version)
+                        )
+                    ));
+                    lines.push(format!(
+                        "    pdf: {}",
+                        join_url(
+                            &project.conf.base_url,
+                            &format!("{}/pdf/v{}/", plan.canonical_stem, version.conf.version)
+                        )
+                    ));
+                }
+            }
         }
     }
 
@@ -198,5 +254,49 @@ mod tests {
         assert!(output.contains("    pdf_latest: https://slides.example.com/base/intro.pdf"));
         assert!(output.contains("    pdf: https://slides.example.com/base/talks_v2.pdf"));
         assert!(output.contains("    pdf: https://slides.example.com/base/intro_v2.pdf"));
+    }
+
+    #[test]
+    fn test_render_uses_alias_urls_for_canonical_strategy() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+
+        init(root).unwrap();
+        let config = root.join("config.toml");
+        let config_str = std::fs::read_to_string(&config).unwrap();
+        let config_str = config_str
+            .replace("https://example.com/", "https://slides.example.com/base/")
+            .replace(
+                "path_strategy = \"legacy\"",
+                "path_strategy = \"canonical-with-redirects\"",
+            );
+        std::fs::write(&config, config_str).unwrap();
+
+        let project = Project::get(root.to_path_buf()).unwrap();
+        add(&project, "intro".to_string(), true, false, SlideType::Marp).unwrap();
+        let slide_conf_path = root.join("src/intro/slide.toml");
+        let slide_conf = std::fs::read_to_string(&slide_conf_path).unwrap();
+        let slide_conf = slide_conf.replace("custom_path = []", "custom_path = [\"talks\"]");
+        std::fs::write(&slide_conf_path, slide_conf).unwrap();
+
+        bump(
+            &Project::get(root.to_path_buf()).unwrap(),
+            PathBuf::from("src/intro"),
+        )
+        .unwrap();
+
+        let project = Project::get(root.to_path_buf()).unwrap();
+        let output = render(
+            &project,
+            &project.get_slide_root(Path::new("src/intro")).unwrap(),
+        )
+        .unwrap();
+
+        assert!(output.contains("    html: https://slides.example.com/base/talks"));
+        assert!(output.contains("    html: https://slides.example.com/base/talks/v1/"));
+        assert!(output.contains("    html: https://slides.example.com/base/talks/v2/"));
+        assert!(output.contains("    pdf_latest: https://slides.example.com/base/talks/pdf/"));
+        assert!(output.contains("    pdf: https://slides.example.com/base/talks/pdf/v1/"));
+        assert!(output.contains("    pdf: https://slides.example.com/base/talks/pdf/v2/"));
     }
 }

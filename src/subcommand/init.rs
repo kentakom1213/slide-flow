@@ -92,6 +92,10 @@ mod test_init {
         assert_eq!(config.template.suffix, "");
         assert_eq!(config.build.theme_dir, ".marp/themes");
         assert_eq!(config.build.marp_binary, "marp");
+        assert_eq!(
+            config.build.path_strategy,
+            crate::config::PathStrategy::Legacy
+        );
 
         // Verify error when trying to initialize a project in an already existing directory
         let result = init(&project_root);

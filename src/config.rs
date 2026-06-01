@@ -63,6 +63,9 @@ pub struct BuildConf {
     pub theme_dir: String,
     /// binary for marp
     pub marp_binary: String,
+    /// default path strategy
+    #[serde(default)]
+    pub path_strategy: PathStrategy,
 }
 
 impl Default for BuildConf {
@@ -71,7 +74,22 @@ impl Default for BuildConf {
         BuildConf {
             theme_dir: ".marp/themes".to_string(),
             marp_binary: "marp".to_string(),
+            path_strategy: PathStrategy::Legacy,
         }
+    }
+}
+
+/// strategy for published paths
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum PathStrategy {
+    Legacy,
+    CanonicalWithRedirects,
+}
+
+impl Default for PathStrategy {
+    fn default() -> Self {
+        Self::Legacy
     }
 }
 
@@ -98,6 +116,8 @@ pub struct SlideConf {
     pub type_: SlideType,
     /// bibliography entries
     pub bibliography: Option<Vec<BibEntry>>,
+    /// slide-local path strategy override
+    pub path_strategy: Option<PathStrategy>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, ValueEnum)]
@@ -190,11 +210,13 @@ mod test_config {
             [build]
             theme_dir = ".marp/themes"
             marp_binary = "marp"
+            path_strategy = "legacy"
         "##;
 
         let config: ProjectConf = toml::from_str(&config_example).unwrap();
 
         println!("{:#?}", config);
+        assert_eq!(config.build.path_strategy, PathStrategy::Legacy);
     }
 
     #[test]
@@ -206,11 +228,16 @@ mod test_config {
             draft = true
             description = "This is slide1"
             title_prefix = "##"
+            path_strategy = "canonical-with-redirects"
         "###;
 
         let config: SlideConf = toml::from_str(&config_example).unwrap();
 
         println!("{:#?}", config);
+        assert_eq!(
+            config.path_strategy,
+            Some(PathStrategy::CanonicalWithRedirects)
+        );
     }
 
     #[test]
@@ -222,6 +249,7 @@ mod test_config {
             draft = true
             description = "This is slide1"
             title_prefix = "##"
+            path_strategy = "legacy"
 
             [[bibliography]]
             tag = "tag1"
@@ -252,5 +280,36 @@ mod test_config {
             config.bibliography.as_ref().unwrap()[1].format(),
             "Author C. This is bibliographic information 2. 2020. https://doi.org/yyyy"
         );
+        assert_eq!(config.path_strategy, Some(PathStrategy::Legacy));
+    }
+
+    #[test]
+    fn test_parse_legacy_configs_without_path_strategy() {
+        let project_config = r##"
+            name = "slide-flow"
+            author = "powell"
+            base_url = "https://test.dev/"
+            output_dir = "output"
+            
+            [template]
+            slide = "<!-- slide -->"
+            index = "<!-- index -->"
+            suffix = "<!-- slide-end -->"
+
+            [build]
+            theme_dir = ".marp/themes"
+            marp_binary = "marp"
+        "##;
+
+        let slide_config = r###"
+            version = 1
+            name = "slide1"
+        "###;
+
+        let project: ProjectConf = toml::from_str(project_config).unwrap();
+        let slide: SlideConf = toml::from_str(slide_config).unwrap();
+
+        assert_eq!(project.build.path_strategy, PathStrategy::Legacy);
+        assert_eq!(slide.path_strategy, None);
     }
 }
