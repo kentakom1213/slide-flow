@@ -1,17 +1,19 @@
 use clap::Parser;
 use slide_flow::{
     config::PathStrategy,
+    images::{clean_image_cache, optimize_slide_images, print_report, OptimizeOptions},
     parser::{
-        Cmd, MigrateCommands, SlidesCommands,
-        SubCommands::{Build, Init, Migrate, Slide},
+        Cmd, ImagesCommands, MigrateCommands, SlidesCommands,
+        SubCommands::{Build, Images, Init, Migrate, Slide},
     },
     project::Project,
     subcommand::{
         add::add,
         bib::update_bibliography,
         build::{
-            build, build_html_commands, build_ogp_image_commands, build_pdf_commands,
-            build_pdf_latest_alias_commands, copy_images_html, copy_ipe_pdf, write_alias_redirects,
+            build, build_html_commands_with_options, build_ogp_image_commands_with_options,
+            build_pdf_commands_with_options, build_pdf_latest_alias_commands_with_options,
+            copy_images_html_with_options, copy_ipe_pdf, write_alias_redirects,
         },
         index::put_index,
         init::init,
@@ -62,7 +64,13 @@ fn runner() -> anyhow::Result<()> {
         Build {
             directories,
             concurrent,
+            no_optimize_images,
         } => {
+            let optimize_options = OptimizeOptions {
+                dry_run: false,
+                force: false,
+            };
+            let optimize_images = !no_optimize_images;
             // generate build commands
             let mut cmds = vec![];
 
@@ -94,34 +102,55 @@ fn runner() -> anyhow::Result<()> {
                 }
 
                 // copy images
-                if let Err(e) = copy_images_html(&project, &target_slide) {
+                if let Err(e) =
+                    copy_images_html_with_options(&project, &target_slide, optimize_images)
+                {
                     log::error!("Failed to copy images: {}", e);
                     continue;
                 }
 
-                let build_html_cmd = match build_html_commands(&project, &target_slide) {
+                let build_html_cmd = match build_html_commands_with_options(
+                    &project,
+                    &target_slide,
+                    &optimize_options,
+                    optimize_images,
+                ) {
                     Ok(cmds) => cmds,
                     Err(e) => {
                         log::error!("Failed to prepare HTML build: {}", e);
                         continue;
                     }
                 };
-                let build_pdf_cmd = match build_pdf_commands(&project, &target_slide) {
+                let build_pdf_cmd = match build_pdf_commands_with_options(
+                    &project,
+                    &target_slide,
+                    &optimize_options,
+                    optimize_images,
+                ) {
                     Ok(cmds) => cmds,
                     Err(e) => {
                         log::error!("Failed to prepare PDF build: {}", e);
                         continue;
                     }
                 };
-                let build_pdf_latest_alias_cmd =
-                    match build_pdf_latest_alias_commands(&project, &target_slide) {
-                        Ok(cmds) => cmds,
-                        Err(e) => {
-                            log::error!("Failed to prepare latest PDF build: {}", e);
-                            continue;
-                        }
-                    };
-                let build_ogp_image_cmd = match build_ogp_image_commands(&project, &target_slide) {
+                let build_pdf_latest_alias_cmd = match build_pdf_latest_alias_commands_with_options(
+                    &project,
+                    &target_slide,
+                    &optimize_options,
+                    optimize_images,
+                ) {
+                    Ok(cmds) => cmds,
+                    Err(e) => {
+                        log::error!("Failed to prepare latest PDF build: {}", e);
+                        continue;
+                    }
+                };
+                let build_ogp_image_cmd = match build_ogp_image_commands_with_options(
+                    &project,
+                    &target_slide,
+                    &optimize_options,
+                    optimize_images,
+                ) {
                     Ok(cmds) => cmds,
                     Err(e) => {
                         log::error!("Failed to prepare OGP image build: {}", e);
@@ -146,7 +175,9 @@ fn runner() -> anyhow::Result<()> {
 
                     if archived.conf.type_.is_marp() {
                         if build_archived_html {
-                            if let Err(e) = copy_images_html(&project, &archived) {
+                            if let Err(e) =
+                                copy_images_html_with_options(&project, &archived, optimize_images)
+                            {
                                 log::error!(
                                     "Failed to copy archived images {}: {}",
                                     archived.dir.to_string_lossy(),
@@ -155,7 +186,12 @@ fn runner() -> anyhow::Result<()> {
                                 continue;
                             }
 
-                            match build_html_commands(&project, &archived) {
+                            match build_html_commands_with_options(
+                                &project,
+                                &archived,
+                                &optimize_options,
+                                optimize_images,
+                            ) {
                                 Ok(archived_cmds) => cmds.extend(archived_cmds),
                                 Err(e) => {
                                     log::error!(
@@ -166,7 +202,12 @@ fn runner() -> anyhow::Result<()> {
                                 }
                             }
 
-                            match build_ogp_image_commands(&project, &archived) {
+                            match build_ogp_image_commands_with_options(
+                                &project,
+                                &archived,
+                                &optimize_options,
+                                optimize_images,
+                            ) {
                                 Ok(archived_cmds) => cmds.extend(archived_cmds),
                                 Err(e) => {
                                     log::error!(
@@ -178,7 +219,12 @@ fn runner() -> anyhow::Result<()> {
                             }
                         }
 
-                        match build_pdf_commands(&project, &archived) {
+                        match build_pdf_commands_with_options(
+                            &project,
+                            &archived,
+                            &optimize_options,
+                            optimize_images,
+                        ) {
                             Ok(archived_cmds) => cmds.extend(archived_cmds),
                             Err(e) => {
                                 log::error!(
@@ -200,6 +246,35 @@ fn runner() -> anyhow::Result<()> {
 
             Ok(())
         }
+        Images { command } => match command {
+            ImagesCommands::Optimize {
+                dir,
+                dry_run,
+                force,
+            } => {
+                let slide = project.get_slide(&dir)?;
+                let report =
+                    optimize_slide_images(&project, &slide, &OptimizeOptions { dry_run, force })?;
+                print_report(&report, &project);
+                Ok(())
+            }
+            ImagesCommands::OptimizeAll { dry_run, force } => {
+                for slide in &project.slides {
+                    let report = optimize_slide_images(
+                        &project,
+                        slide,
+                        &OptimizeOptions { dry_run, force },
+                    )?;
+                    print_report(&report, &project);
+                }
+                Ok(())
+            }
+            ImagesCommands::Clean => {
+                let cache_dir = clean_image_cache(&project)?;
+                println!("Removed image cache: {}", cache_dir.to_string_lossy());
+                Ok(())
+            }
+        },
         Migrate { command } => match command {
             MigrateCommands::Plan { dir } => plan(&project, dir),
             MigrateCommands::Status => status(&project),

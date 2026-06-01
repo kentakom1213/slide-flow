@@ -32,6 +32,15 @@ pub enum SubCommands {
         /// max concurrent build
         #[clap(long, default_value = "4")]
         concurrent: usize,
+        /// skip image optimization before building
+        #[clap(long)]
+        no_optimize_images: bool,
+    },
+    /// Image operations
+    #[clap(arg_required_else_help = true)]
+    Images {
+        #[clap(subcommand)]
+        command: ImagesCommands,
     },
     /// Slide operations
     #[clap(arg_required_else_help = true)]
@@ -45,6 +54,33 @@ pub enum SubCommands {
         #[clap(subcommand)]
         command: MigrateCommands,
     },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum ImagesCommands {
+    /// Optimize images referenced by a slide
+    Optimize {
+        /// path to slide directory
+        #[clap(required = true)]
+        dir: PathBuf,
+        /// show what would be optimized without writing files
+        #[clap(long)]
+        dry_run: bool,
+        /// ignore cached optimized files
+        #[clap(long)]
+        force: bool,
+    },
+    /// Optimize images referenced by all slides
+    OptimizeAll {
+        /// show what would be optimized without writing files
+        #[clap(long)]
+        dry_run: bool,
+        /// ignore cached optimized files
+        #[clap(long)]
+        force: bool,
+    },
+    /// Remove optimized image cache
+    Clean,
 }
 
 #[derive(Debug, Subcommand)]

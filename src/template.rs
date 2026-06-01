@@ -156,6 +156,7 @@ mod test_template {
             output_dir: "output".to_string(),
             template,
             build: build_conf,
+            images: Default::default(),
         };
 
         let slides = vec![
