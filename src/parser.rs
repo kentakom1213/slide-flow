@@ -39,6 +39,12 @@ pub enum SubCommands {
         #[clap(subcommand)]
         command: SlidesCommands,
     },
+    /// Migration operations
+    #[clap(arg_required_else_help = true)]
+    Migrate {
+        #[clap(subcommand)]
+        command: MigrateCommands,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -85,6 +91,38 @@ pub enum SlidesCommands {
     Bib {
         /// slide directory
         dir: PathBuf,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum MigrateCommands {
+    /// Show planned migration changes
+    Plan {
+        /// slide directory (e.g. src/intro)
+        dir: Option<PathBuf>,
+    },
+    /// Show migration status
+    Status,
+    /// Apply migration changes
+    Apply {
+        /// slide directory (e.g. src/intro)
+        #[clap(required = true)]
+        dir: PathBuf,
+        /// update slide.toml only
+        #[clap(long)]
+        metadata_only: bool,
+        /// generate redirects only
+        #[clap(long)]
+        redirects_only: bool,
+        /// build canonical artifacts and redirects
+        #[clap(long)]
+        artifacts: bool,
+        /// remove legacy alias artifacts
+        #[clap(long)]
+        remove_legacy_artifacts: bool,
+        /// max concurrent build
+        #[clap(long, default_value = "4")]
+        concurrent: usize,
     },
 }
 
@@ -181,5 +219,39 @@ mod tests {
             err.kind(),
             clap::error::ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand
         );
+    }
+
+    #[test]
+    fn parses_migrate_apply_command() {
+        let cmd = Cmd::try_parse_from([
+            "slide-flow",
+            "migrate",
+            "apply",
+            "src/intro",
+            "--metadata-only",
+        ])
+        .unwrap();
+
+        match cmd.subcommand {
+            SubCommands::Migrate {
+                command:
+                    MigrateCommands::Apply {
+                        dir,
+                        metadata_only,
+                        redirects_only,
+                        artifacts,
+                        remove_legacy_artifacts,
+                        concurrent,
+                    },
+            } => {
+                assert_eq!(dir, PathBuf::from("src/intro"));
+                assert!(metadata_only);
+                assert!(!redirects_only);
+                assert!(!artifacts);
+                assert!(!remove_legacy_artifacts);
+                assert_eq!(concurrent, 4);
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
     }
 }

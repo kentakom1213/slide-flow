@@ -5,9 +5,9 @@ use std::{collections::HashSet, fs};
 use askama::Template;
 
 use crate::{
+    path::PublishPlan,
     project::Project,
-    subcommand::build::{make_file_stems, make_versioned_stems},
-    template::{IndexTemplate, ReadmeTemplate},
+    template::{IndexTemplate, PublishedSlide, ReadmeTemplate},
 };
 
 /// create list of slides
@@ -15,12 +15,16 @@ use crate::{
 /// - README.md
 pub fn create_files(project: &Project) -> anyhow::Result<()> {
     // get slide configurations
-    let slide_configs = project.get_slide_conf_list();
+    let slides = project
+        .slides
+        .iter()
+        .map(|slide| PublishedSlide::from_slide(project, slide))
+        .collect::<Vec<_>>();
 
     // generate README.md
     let readme_temp = ReadmeTemplate {
         project: &project.conf,
-        slides: &slide_configs,
+        slides: &slides,
     };
 
     // save README.md
@@ -29,9 +33,7 @@ pub fn create_files(project: &Project) -> anyhow::Result<()> {
     log::info!("update: README.md");
 
     // generate index.html
-    let index_temp = IndexTemplate {
-        slides: &slide_configs,
-    };
+    let index_temp = IndexTemplate { slides: &slides };
 
     // save index.html
     fs::write(
@@ -61,11 +63,18 @@ pub fn remove_cache(project: &Project) -> anyhow::Result<()> {
             continue;
         }
 
-        for stem in make_file_stems(slide) {
-            retained_files.insert(stem.clone());
-            retained_files.insert(stem + ".pdf");
+        let plan = PublishPlan::for_slide(project, slide);
+
+        for stem in plan.html_stems {
+            retained_files.insert(stem);
         }
-        for stem in make_versioned_stems(slide) {
+        for file_name in plan.latest_pdf_aliases {
+            retained_files.insert(file_name);
+        }
+        for alias in plan.alias_stems {
+            retained_files.insert(alias);
+        }
+        for stem in plan.versioned_pdf_stems {
             retained_files.insert(stem + ".pdf");
         }
 
@@ -73,7 +82,7 @@ pub fn remove_cache(project: &Project) -> anyhow::Result<()> {
             if archived.conf.draft.unwrap_or(false) {
                 continue;
             }
-            for stem in make_versioned_stems(&archived) {
+            for stem in PublishPlan::for_slide(project, &archived).versioned_pdf_stems {
                 retained_files.insert(stem + ".pdf");
             }
         }

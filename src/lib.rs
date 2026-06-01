@@ -1,6 +1,7 @@
 pub mod config;
 pub mod contents;
 pub mod parser;
+pub mod path;
 pub mod project;
 pub mod slide;
 pub mod subcommand;
