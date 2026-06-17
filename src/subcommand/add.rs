@@ -5,7 +5,7 @@ use std::fs;
 use anyhow::bail;
 
 use crate::{
-    config::{SlideConf, SlideType},
+    config::{PathStrategy, SlideConf, SlideType},
     project::Project,
 };
 
@@ -49,7 +49,7 @@ pub fn add(
         title_prefix: None,
         type_,
         bibliography: Some(vec![]),
-        path_strategy: None,
+        path_strategy: Some(PathStrategy::CanonicalWithRedirects),
     };
 
     let conf_str = toml::to_string(&conf)?;

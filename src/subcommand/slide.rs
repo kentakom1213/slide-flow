@@ -242,18 +242,16 @@ mod tests {
         )
         .unwrap();
 
+        eprintln!("{output}");
+
         assert!(output.contains("no: 1"));
         assert!(output.contains("path: src/intro"));
         assert!(output.contains("  v1:"));
-        assert!(output.contains("    pdf: https://slides.example.com/base/talks_v1.pdf"));
-        assert!(output.contains("    pdf: https://slides.example.com/base/intro_v1.pdf"));
+        assert!(output.contains("    pdf: https://slides.example.com/base/talks/pdf/v1/"));
         assert!(output.contains("  v2:"));
         assert!(output.contains("    html: https://slides.example.com/base/talks"));
-        assert!(output.contains("    html: https://slides.example.com/base/intro"));
-        assert!(output.contains("    pdf_latest: https://slides.example.com/base/talks.pdf"));
-        assert!(output.contains("    pdf_latest: https://slides.example.com/base/intro.pdf"));
-        assert!(output.contains("    pdf: https://slides.example.com/base/talks_v2.pdf"));
-        assert!(output.contains("    pdf: https://slides.example.com/base/intro_v2.pdf"));
+        assert!(output.contains("    pdf_latest: https://slides.example.com/base/talks/pdf/"));
+        assert!(output.contains("    pdf: https://slides.example.com/base/talks/pdf/v2/"));
     }
 
     #[test]
