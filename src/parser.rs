@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 
 use crate::config::SlideType;
 
@@ -26,15 +26,68 @@ pub enum SubCommands {
     Init,
     /// Build slide
     Build {
-        /// path to slide directory
-        #[clap(required = true)]
-        directories: Vec<PathBuf>,
+        #[command(flatten)]
+        targets: RequiredTargetArgs,
         /// max concurrent build
         #[clap(long, default_value = "4")]
         concurrent: usize,
         /// skip image optimization before building
         #[clap(long)]
         no_optimize_images: bool,
+    },
+    /// Prepare slides for publishing
+    Prepare {
+        #[command(flatten)]
+        targets: OptionalTargetArgs,
+        /// skip project README and index refresh
+        #[clap(long)]
+        no_refresh: bool,
+        /// skip stale output cleanup
+        #[clap(long)]
+        no_clean: bool,
+        /// skip table of contents updates
+        #[clap(long)]
+        no_toc: bool,
+        /// skip bibliography updates
+        #[clap(long)]
+        no_bib: bool,
+        /// skip builds
+        #[clap(long)]
+        no_build: bool,
+        /// skip image optimization before building
+        #[clap(long)]
+        no_optimize_images: bool,
+        /// max concurrent build
+        #[clap(long, default_value = "4")]
+        concurrent: usize,
+        /// show planned steps without writing files
+        #[clap(long)]
+        dry_run: bool,
+    },
+    /// Put table of contents into slides
+    Toc {
+        #[command(flatten)]
+        targets: RequiredTargetArgs,
+        /// run quietly
+        #[clap(short, long)]
+        quiet: bool,
+    },
+    /// Update slide bibliography
+    Bib {
+        #[command(flatten)]
+        targets: RequiredTargetArgs,
+    },
+    /// Clean generated files
+    #[clap(arg_required_else_help = true)]
+    Clean {
+        #[clap(subcommand)]
+        command: CleanCommands,
+    },
+    /// Project operations
+    #[clap(arg_required_else_help = true)]
+    Project {
+        #[clap(subcommand)]
+        command: ProjectCommands,
     },
     /// Image operations
     #[clap(arg_required_else_help = true)]
@@ -56,22 +109,66 @@ pub enum SubCommands {
     },
 }
 
+#[derive(Debug, Clone, Args)]
+#[group(required = true, multiple = false)]
+pub struct RequiredTargetArgs {
+    /// path to slide directories
+    #[clap(value_name = "DIR")]
+    pub directories: Vec<PathBuf>,
+    /// target all managed slides
+    #[clap(long)]
+    pub all: bool,
+    /// target slides changed in Git
+    #[clap(long)]
+    pub changed: bool,
+}
+
+#[derive(Debug, Clone, Args, Default)]
+#[group(multiple = false)]
+pub struct OptionalTargetArgs {
+    /// path to slide directories
+    #[clap(value_name = "DIR")]
+    pub directories: Vec<PathBuf>,
+    /// target all managed slides
+    #[clap(long)]
+    pub all: bool,
+    /// target slides changed in Git
+    #[clap(long)]
+    pub changed: bool,
+}
+
 #[derive(Debug, Subcommand)]
-pub enum ImagesCommands {
-    /// Optimize images referenced by a slide
-    Optimize {
-        /// path to slide directory
-        #[clap(required = true)]
-        dir: PathBuf,
-        /// show what would be optimized without writing files
+pub enum ProjectCommands {
+    /// List managed slides
+    List,
+    /// Show project configuration and basic information
+    Show,
+    /// Update README.md and output index.html
+    Refresh,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum CleanCommands {
+    /// Remove stale generated outputs
+    Outputs {
+        /// show what would be removed without deleting files
         #[clap(long)]
         dry_run: bool,
-        /// ignore cached optimized files
-        #[clap(long)]
-        force: bool,
     },
-    /// Optimize images referenced by all slides
-    OptimizeAll {
+    /// Remove stale generated outputs and image optimization cache
+    All {
+        /// show what would be removed without deleting files
+        #[clap(long)]
+        dry_run: bool,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum ImagesCommands {
+    /// Optimize images referenced by slides
+    Optimize {
+        #[command(flatten)]
+        targets: RequiredTargetArgs,
         /// show what would be optimized without writing files
         #[clap(long)]
         dry_run: bool,
@@ -92,17 +189,18 @@ pub enum SlidesCommands {
         #[clap(required = true)]
         name: String,
         /// Make secret page
-        #[clap(long, default_value_t = true)]
+        #[clap(long, conflicts_with = "public")]
         secret: bool,
+        /// Make public page
+        #[clap(long, conflicts_with = "secret")]
+        public: bool,
         /// Make draft page
-        #[clap(long, default_value_t = false)]
+        #[clap(long)]
         draft: bool,
         /// Slide type. By default `marp`
         #[clap(long = "type")]
         type_: Option<SlideType>,
     },
-    /// List managed slides
-    List,
     /// Show slide details by list number or path
     Show {
         /// slide number from `slides list` or slide path like `src/intro`
@@ -112,20 +210,6 @@ pub enum SlidesCommands {
     Archive {
         /// slide directory (e.g. src/intro)
         #[clap(required = true)]
-        dir: PathBuf,
-    },
-    /// Put index to slide
-    Index {
-        /// specify slide directory
-        #[clap(short, long)]
-        dir: Option<PathBuf>,
-        /// run quietly
-        #[clap(short, long)]
-        quiet: bool,
-    },
-    /// Modify slide bibliography
-    Bib {
-        /// slide directory
         dir: PathBuf,
     },
 }
@@ -188,12 +272,14 @@ mod tests {
                     SlidesCommands::Add {
                         name,
                         secret,
+                        public,
                         draft,
                         type_: None,
                     },
             } => {
                 assert_eq!(name, "intro");
-                assert!(secret);
+                assert!(!secret);
+                assert!(!public);
                 assert!(!draft);
             }
             other => panic!("unexpected command: {other:?}"),
@@ -213,22 +299,26 @@ mod tests {
     }
 
     #[test]
-    fn parses_slide_index_command() {
-        let cmd = Cmd::try_parse_from([
-            "slide-flow",
-            "slide",
-            "index",
-            "--dir",
-            "src/intro",
-            "--quiet",
-        ])
-        .unwrap();
+    fn parses_project_list_command() {
+        let cmd = Cmd::try_parse_from(["slide-flow", "project", "list"]).unwrap();
 
         match cmd.subcommand {
-            SubCommands::Slide {
-                command: SlidesCommands::Index { dir, quiet },
-            } => {
-                assert_eq!(dir, Some(PathBuf::from("src/intro")));
+            SubCommands::Project {
+                command: ProjectCommands::List,
+            } => {}
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_toc_command() {
+        let cmd = Cmd::try_parse_from(["slide-flow", "toc", "src/intro", "--quiet"]).unwrap();
+
+        match cmd.subcommand {
+            SubCommands::Toc { targets, quiet } => {
+                assert_eq!(targets.directories, vec![PathBuf::from("src/intro")]);
+                assert!(!targets.all);
+                assert!(!targets.changed);
                 assert!(quiet);
             }
             other => panic!("unexpected command: {other:?}"),
@@ -236,13 +326,46 @@ mod tests {
     }
 
     #[test]
-    fn parses_slide_bib_command() {
-        let cmd = Cmd::try_parse_from(["slide-flow", "slide", "bib", "src/intro"]).unwrap();
+    fn parses_bib_all_command() {
+        let cmd = Cmd::try_parse_from(["slide-flow", "bib", "--all"]).unwrap();
 
         match cmd.subcommand {
-            SubCommands::Slide {
-                command: SlidesCommands::Bib { dir },
-            } => assert_eq!(dir, PathBuf::from("src/intro")),
+            SubCommands::Bib { targets } => {
+                assert!(targets.directories.is_empty());
+                assert!(targets.all);
+                assert!(!targets.changed);
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn rejects_build_without_target() {
+        let err = Cmd::try_parse_from(["slide-flow", "build"]).unwrap_err();
+
+        assert_eq!(err.kind(), clap::error::ErrorKind::MissingRequiredArgument);
+    }
+
+    #[test]
+    fn rejects_multiple_target_modes() {
+        let err = Cmd::try_parse_from(["slide-flow", "build", "src/intro", "--all"]).unwrap_err();
+
+        assert_eq!(err.kind(), clap::error::ErrorKind::ArgumentConflict);
+    }
+
+    #[test]
+    fn parses_prepare_without_target() {
+        let cmd = Cmd::try_parse_from(["slide-flow", "prepare", "--dry-run"]).unwrap();
+
+        match cmd.subcommand {
+            SubCommands::Prepare {
+                targets, dry_run, ..
+            } => {
+                assert!(targets.directories.is_empty());
+                assert!(!targets.all);
+                assert!(!targets.changed);
+                assert!(dry_run);
+            }
             other => panic!("unexpected command: {other:?}"),
         }
     }

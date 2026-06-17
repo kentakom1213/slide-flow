@@ -1,4 +1,4 @@
-//! subcommand for pre-commit
+//! project refresh and output cleanup helpers
 
 use std::{collections::HashSet, fs};
 
@@ -13,7 +13,7 @@ use crate::{
 /// create list of slides
 /// - index.html
 /// - README.md
-pub fn create_files(project: &Project) -> anyhow::Result<()> {
+pub fn refresh_project_files(project: &Project) -> anyhow::Result<()> {
     // get slide configurations
     let slides = project
         .slides
@@ -34,26 +34,46 @@ pub fn create_files(project: &Project) -> anyhow::Result<()> {
 
     // generate index.html
     let index_temp = IndexTemplate { slides: &slides };
+    let output_dir = project.root_dir.join(&project.conf.output_dir);
+    fs::create_dir_all(&output_dir)?;
 
     // save index.html
-    fs::write(
-        project
-            .root_dir
-            .join(&project.conf.output_dir)
-            .join("index.html"),
-        index_temp.render()?,
-    )?;
+    fs::write(output_dir.join("index.html"), index_temp.render()?)?;
 
     log::info!("update: {}/index.html", project.conf.output_dir);
 
     Ok(())
 }
 
-/// remove cache files
+/// remove stale generated outputs
 ///
 /// **input**
 /// - `project`: project information
-pub fn remove_cache(project: &Project) -> anyhow::Result<()> {
+pub fn clean_stale_outputs(project: &Project, dry_run: bool) -> anyhow::Result<()> {
+    let remove_files = stale_output_files(project)?;
+
+    for file in remove_files {
+        if dry_run {
+            println!("Would remove: {}", file.to_string_lossy());
+            continue;
+        }
+
+        let remove_result = if file.is_dir() {
+            fs::remove_dir_all(&file)
+        } else {
+            fs::remove_file(&file)
+        };
+
+        match remove_result {
+            Ok(_) => log::info!("remove: {}", file.to_string_lossy()),
+            Err(e) => log::error!("failed to remove: {}, error: {}", file.to_string_lossy(), e),
+        }
+    }
+
+    Ok(())
+}
+
+fn stale_output_files(project: &Project) -> anyhow::Result<Vec<std::path::PathBuf>> {
     // files/directories not to be removed from output root
     let mut retained_files: HashSet<String> = HashSet::new();
     retained_files.insert("index.html".to_string());
@@ -91,7 +111,7 @@ pub fn remove_cache(project: &Project) -> anyhow::Result<()> {
     // output directory
     let output_dir = project.root_dir.join(&project.conf.output_dir);
     if !output_dir.exists() {
-        return Ok(());
+        return Ok(vec![]);
     }
 
     // get all files for removal
@@ -103,22 +123,8 @@ pub fn remove_cache(project: &Project) -> anyhow::Result<()> {
                 return false;
             };
             !retained_files.contains(name)
-        });
+        })
+        .collect::<Vec<_>>();
 
-    // remove files
-    for file in remove_files {
-        // remove
-        let remove_result = if file.is_dir() {
-            fs::remove_dir_all(&file)
-        } else {
-            fs::remove_file(&file)
-        };
-
-        match remove_result {
-            Ok(_) => log::info!("remove: {}", file.to_string_lossy()),
-            Err(e) => log::error!("failed to remove: {}, error: {}", file.to_string_lossy(), e),
-        }
-    }
-
-    Ok(())
+    Ok(remove_files)
 }

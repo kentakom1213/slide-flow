@@ -1,6 +1,6 @@
 # slide-flow
 
-`slide-flow` is a Rust CLI for managing slide decks authored with Marp markdown or Ipe PDF sources. It creates slide workspaces, manages versions, builds HTML / PDF / OGP artifacts, generates slide indexes, and supports migration from legacy public paths to canonical UUID-backed paths with redirects.
+`slide-flow` is a Rust CLI for managing slide decks authored with Marp markdown or Ipe PDF sources. It creates slide workspaces, manages versions, builds HTML / PDF / OGP artifacts, updates tables of contents, and supports migration from legacy public paths to canonical UUID-backed paths with redirects.
 
 [日本語版](README-ja.md)
 
@@ -21,9 +21,9 @@ cargo install --git https://github.com/kentakom1213/slide-flow -f
 ```bash
 slide-flow init
 slide-flow slide add my-first-slide
-slide-flow slide index --dir src/my-first-slide
+slide-flow toc src/my-first-slide
 slide-flow build src/my-first-slide
-slide-flow slide list
+slide-flow project list
 ```
 
 The generated output is written to `output_dir` from `config.toml`. The default is `output/`.
@@ -34,20 +34,40 @@ Top-level commands:
 
 ```txt
 slide-flow init
-slide-flow build <DIR>...
+slide-flow build <DIR>... | --all | --changed
+slide-flow prepare [<DIR>... | --all | --changed]
+slide-flow toc <DIR>... | --all | --changed
+slide-flow bib <DIR>... | --all | --changed
 slide-flow slide <COMMAND>
+slide-flow project <COMMAND>
+slide-flow images <COMMAND>
+slide-flow clean <COMMAND>
 slide-flow migrate <COMMAND>
 ```
 
 Slide commands:
 
 ```txt
-slide-flow slide add <NAME> [--secret <true|false>] [--draft <true|false>] [--type <marp|ipe>]
-slide-flow slide list
+slide-flow slide add <NAME> [--secret | --public] [--draft] [--type <marp|ipe>]
 slide-flow slide show <NUMBER|DIR>
 slide-flow slide archive <DIR>
-slide-flow slide index [--dir <DIR>] [--quiet]
-slide-flow slide bib <DIR>
+```
+
+Project commands:
+
+```txt
+slide-flow project list
+slide-flow project show
+slide-flow project refresh
+```
+
+Image and cleanup commands:
+
+```txt
+slide-flow images optimize <DIR>... | --all | --changed [--dry-run] [--force]
+slide-flow images clean
+slide-flow clean outputs [--dry-run]
+slide-flow clean all [--dry-run]
 ```
 
 Migration commands:
@@ -95,7 +115,7 @@ slide-flow slide add my-first-slide
 Create a draft:
 
 ```bash
-slide-flow slide add work-in-progress --draft true
+slide-flow slide add work-in-progress --draft
 ```
 
 Create an Ipe slide:
@@ -111,7 +131,7 @@ Each slide lives under `src/<name>/` and has a `slide.toml`. Marp slides use `sl
 List slides:
 
 ```bash
-slide-flow slide list
+slide-flow project list
 ```
 
 Show metadata and published URLs:
@@ -134,19 +154,19 @@ This copies the current slide files into `src/my-first-slide/v<version>/`, incre
 Add slide numbers and a table of contents to one slide:
 
 ```bash
-slide-flow slide index --dir src/my-first-slide
+slide-flow toc src/my-first-slide
 ```
 
 Index all slides:
 
 ```bash
-slide-flow slide index
+slide-flow toc --all
 ```
 
 Update bibliography entries for a slide:
 
 ```bash
-slide-flow slide bib src/my-first-slide
+slide-flow bib src/my-first-slide
 ```
 
 ## Building
@@ -157,9 +177,32 @@ Build one or more slides:
 slide-flow build src/my-first-slide
 slide-flow build src/my-first-slide src/another-slide
 slide-flow build src/my-first-slide --concurrent 8
+slide-flow build --all
+slide-flow build --changed
 ```
 
 For Marp slides, `slide-flow` invokes Marp and builds HTML and PDF artifacts. For Ipe slides, it copies `slide.pdf` into the output directory. Archived versions under `src/<slide>/v*/` are built as versioned PDFs; with `canonical-with-redirects`, archived Marp versions also get versioned HTML and OGP images.
+
+## Preparing Publish Files
+
+Run the standard publish preparation pipeline:
+
+```bash
+slide-flow prepare
+```
+
+By default, `prepare` targets changed slides and runs project refresh, stale output cleanup, table of contents updates, bibliography updates, and builds. Preview the selected targets and planned steps:
+
+```bash
+slide-flow prepare --dry-run
+```
+
+Recommended hook usage keeps staging outside `slide-flow`:
+
+```bash
+slide-flow prepare
+git add README.md output
+```
 
 ## Path Strategies
 

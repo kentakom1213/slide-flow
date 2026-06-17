@@ -21,9 +21,9 @@ cargo install --git https://github.com/kentakom1213/slide-flow -f
 ```bash
 slide-flow init
 slide-flow slide add my-first-slide
-slide-flow slide index --dir src/my-first-slide
+slide-flow toc src/my-first-slide
 slide-flow build src/my-first-slide
-slide-flow slide list
+slide-flow project list
 ```
 
 生成物は `config.toml` の `output_dir` に出力されます，デフォルトは `output/` です，
@@ -34,20 +34,40 @@ slide-flow slide list
 
 ```txt
 slide-flow init
-slide-flow build <DIR>...
+slide-flow build <DIR>... | --all | --changed
+slide-flow prepare [<DIR>... | --all | --changed]
+slide-flow toc <DIR>... | --all | --changed
+slide-flow bib <DIR>... | --all | --changed
 slide-flow slide <COMMAND>
+slide-flow project <COMMAND>
+slide-flow images <COMMAND>
+slide-flow clean <COMMAND>
 slide-flow migrate <COMMAND>
 ```
 
 スライド操作です，
 
 ```txt
-slide-flow slide add <NAME> [--secret <true|false>] [--draft <true|false>] [--type <marp|ipe>]
-slide-flow slide list
+slide-flow slide add <NAME> [--secret | --public] [--draft] [--type <marp|ipe>]
 slide-flow slide show <NUMBER|DIR>
 slide-flow slide archive <DIR>
-slide-flow slide index [--dir <DIR>] [--quiet]
-slide-flow slide bib <DIR>
+```
+
+プロジェクト操作です，
+
+```txt
+slide-flow project list
+slide-flow project show
+slide-flow project refresh
+```
+
+画像とクリーンアップ操作です，
+
+```txt
+slide-flow images optimize <DIR>... | --all | --changed [--dry-run] [--force]
+slide-flow images clean
+slide-flow clean outputs [--dry-run]
+slide-flow clean all [--dry-run]
 ```
 
 移行操作です，
@@ -95,7 +115,7 @@ slide-flow slide add my-first-slide
 draft を作ります，
 
 ```bash
-slide-flow slide add work-in-progress --draft true
+slide-flow slide add work-in-progress --draft
 ```
 
 Ipe スライドを作ります，
@@ -111,7 +131,7 @@ slide-flow slide add figure-talk --type ipe
 一覧を表示します，
 
 ```bash
-slide-flow slide list
+slide-flow project list
 ```
 
 メタデータと公開 URL を表示します，
@@ -134,19 +154,19 @@ slide-flow slide archive src/my-first-slide
 1 つのスライドにページ番号と目次を入れます，
 
 ```bash
-slide-flow slide index --dir src/my-first-slide
+slide-flow toc src/my-first-slide
 ```
 
 全スライドを処理します，
 
 ```bash
-slide-flow slide index
+slide-flow toc --all
 ```
 
 スライドの文献情報を更新します，
 
 ```bash
-slide-flow slide bib src/my-first-slide
+slide-flow bib src/my-first-slide
 ```
 
 ## ビルド
@@ -157,9 +177,32 @@ slide-flow slide bib src/my-first-slide
 slide-flow build src/my-first-slide
 slide-flow build src/my-first-slide src/another-slide
 slide-flow build src/my-first-slide --concurrent 8
+slide-flow build --all
+slide-flow build --changed
 ```
 
 Marp スライドでは Marp CLI を呼び出し，HTML と PDF を生成します，Ipe スライドでは `slide.pdf` を出力先へコピーします，`src/<slide>/v*/` の archived version は versioned PDF としてビルドされます，`canonical-with-redirects` では archived Marp version の versioned HTML と OGP 画像も生成されます，
+
+## 公開準備
+
+標準の公開準備 pipeline を実行します，
+
+```bash
+slide-flow prepare
+```
+
+`prepare` はデフォルトで changed slides を対象にし，project refresh，stale output cleanup，table of contents 更新，bibliography 更新，build を実行します，対象と実行予定の step は次で確認できます，
+
+```bash
+slide-flow prepare --dry-run
+```
+
+hook では staging を `slide-flow` の外に置く使い方を推奨します，
+
+```bash
+slide-flow prepare
+git add README.md output
+```
 
 ## Path Strategy
 
