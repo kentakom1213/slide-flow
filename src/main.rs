@@ -3,10 +3,10 @@ use slide_flow::{
     config::PathStrategy,
     images::{clean_image_cache, optimize_slide_images, print_report, OptimizeOptions},
     parser::{
-        CleanCommands, Cmd, ImagesCommands, MigrateCommands, OptionalTargetArgs, ProjectCommands,
+        Cmd, ImagesCommands, MigrateCommands, OptionalTargetArgs, ProjectCommands, PruneCommands,
         RequiredTargetArgs, SlidesCommands,
         SubCommands::{
-            Bib, Build, Clean, Images, Init, Migrate, Prepare, Project as ProjectCmd, Slide, Toc,
+            Bib, Build, Images, Init, Migrate, Prepare, Project as ProjectCmd, Prune, Slide, Toc,
         },
     },
     project::Project,
@@ -23,7 +23,7 @@ use slide_flow::{
         init::init,
         list::list,
         migrate::{apply, plan, status, ApplyOptions},
-        pre_commit::{clean_stale_outputs, refresh_project_files},
+        pre_commit::{prune_stale_outputs, refresh_project_files},
         slide::show,
         version::bump,
     },
@@ -83,7 +83,6 @@ fn runner() -> anyhow::Result<()> {
         Prepare {
             targets,
             no_refresh,
-            no_clean,
             no_toc,
             no_bib,
             no_build,
@@ -97,7 +96,6 @@ fn runner() -> anyhow::Result<()> {
                 &slides,
                 PrepareOptions {
                     refresh: !no_refresh,
-                    clean: !no_clean,
                     toc: !no_toc,
                     bib: !no_bib,
                     build: !no_build,
@@ -115,20 +113,9 @@ fn runner() -> anyhow::Result<()> {
             let slides = resolve_required_targets(&project, &targets)?;
             update_bib(&slides)
         }
-        Clean { command } => match command {
-            CleanCommands::Outputs { dry_run } => clean_stale_outputs(&project, dry_run),
-            CleanCommands::All { dry_run } => {
-                clean_stale_outputs(&project, dry_run)?;
-                if dry_run {
-                    println!(
-                        "Would remove image cache: {}",
-                        image_cache_dir(&project).display()
-                    );
-                } else {
-                    let cache_dir = clean_image_cache(&project)?;
-                    println!("Removed image cache: {}", cache_dir.to_string_lossy());
-                }
-                Ok(())
+        Prune { command } => match command {
+            PruneCommands::Outputs { dry_run, apply } => {
+                prune_stale_outputs(&project, apply && !dry_run)
             }
         },
         ProjectCmd { command } => match command {
@@ -203,7 +190,6 @@ fn runner() -> anyhow::Result<()> {
 
 struct PrepareOptions {
     refresh: bool,
-    clean: bool,
     toc: bool,
     bib: bool,
     build: bool,
@@ -338,7 +324,6 @@ fn prepare(project: &Project, slides: &[SlideData], options: PrepareOptions) -> 
 
         println!("Planned steps:");
         print_planned_step(options.refresh, "project refresh");
-        print_planned_step(options.clean, "clean outputs");
         print_planned_step(options.toc, "toc");
         print_planned_step(options.bib, "bib");
         print_planned_step(options.build, "build");
@@ -347,9 +332,6 @@ fn prepare(project: &Project, slides: &[SlideData], options: PrepareOptions) -> 
 
     if options.refresh {
         refresh_project_files(project)?;
-    }
-    if options.clean {
-        clean_stale_outputs(project, false)?;
     }
     if options.toc {
         update_toc(slides, true)?;
@@ -385,10 +367,6 @@ fn show_project(project: &Project) -> anyhow::Result<()> {
     );
     println!("Managed slides: {}", project.slides.len());
     Ok(())
-}
-
-fn image_cache_dir(project: &Project) -> PathBuf {
-    project.root_dir.join(&project.conf.images.cache_dir)
 }
 
 fn display_project_path(project: &Project, path: &Path) -> String {

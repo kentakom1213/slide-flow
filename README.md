@@ -41,7 +41,7 @@ slide-flow bib <DIR>... | --all | --changed
 slide-flow slide <COMMAND>
 slide-flow project <COMMAND>
 slide-flow images <COMMAND>
-slide-flow clean <COMMAND>
+slide-flow prune <COMMAND>
 slide-flow migrate <COMMAND>
 ```
 
@@ -61,13 +61,13 @@ slide-flow project show
 slide-flow project refresh
 ```
 
-Image and cleanup commands:
+Image and pruning commands:
 
 ```txt
 slide-flow images optimize <DIR>... | --all | --changed [--dry-run] [--force]
 slide-flow images clean
-slide-flow clean outputs [--dry-run]
-slide-flow clean all [--dry-run]
+slide-flow prune outputs [--dry-run]
+slide-flow prune outputs --apply
 ```
 
 Migration commands:
@@ -191,7 +191,7 @@ Run the standard publish preparation pipeline:
 slide-flow prepare
 ```
 
-By default, `prepare` targets changed slides and runs project refresh, stale output cleanup, table of contents updates, bibliography updates, and builds. Preview the selected targets and planned steps:
+By default, `prepare` targets changed slides and runs project refresh, table of contents updates, bibliography updates, and builds. It does not prune stale outputs. Preview the selected targets and planned steps:
 
 ```bash
 slide-flow prepare --dry-run
@@ -200,8 +200,17 @@ slide-flow prepare --dry-run
 Recommended hook usage keeps staging outside `slide-flow`:
 
 ```bash
-slide-flow prepare
-git add README.md output
+slide-flow prepare --no-build
+dprint fmt
+slide-flow build --changed --concurrent 4
+git add docs README.md src
+```
+
+Stale output pruning is destructive and must be explicit. It defaults to dry-run unless `--apply` is passed:
+
+```bash
+slide-flow prune outputs --dry-run
+slide-flow prune outputs --apply
 ```
 
 ## Path Strategies

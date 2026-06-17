@@ -42,9 +42,6 @@ pub enum SubCommands {
         /// skip project README and index refresh
         #[clap(long)]
         no_refresh: bool,
-        /// skip stale output cleanup
-        #[clap(long)]
-        no_clean: bool,
         /// skip table of contents updates
         #[clap(long)]
         no_toc: bool,
@@ -77,11 +74,11 @@ pub enum SubCommands {
         #[command(flatten)]
         targets: RequiredTargetArgs,
     },
-    /// Clean generated files
+    /// Prune stale generated files
     #[clap(arg_required_else_help = true)]
-    Clean {
+    Prune {
         #[clap(subcommand)]
-        command: CleanCommands,
+        command: PruneCommands,
     },
     /// Project operations
     #[clap(arg_required_else_help = true)]
@@ -148,22 +145,6 @@ pub enum ProjectCommands {
 }
 
 #[derive(Debug, Subcommand)]
-pub enum CleanCommands {
-    /// Remove stale generated outputs
-    Outputs {
-        /// show what would be removed without deleting files
-        #[clap(long)]
-        dry_run: bool,
-    },
-    /// Remove stale generated outputs and image optimization cache
-    All {
-        /// show what would be removed without deleting files
-        #[clap(long)]
-        dry_run: bool,
-    },
-}
-
-#[derive(Debug, Subcommand)]
 pub enum ImagesCommands {
     /// Optimize images referenced by slides
     Optimize {
@@ -178,6 +159,19 @@ pub enum ImagesCommands {
     },
     /// Remove optimized image cache
     Clean,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum PruneCommands {
+    /// Remove stale generated outputs not included in the current publish plan
+    Outputs {
+        /// show what would be removed without deleting files
+        #[clap(long, conflicts_with = "apply")]
+        dry_run: bool,
+        /// actually remove stale generated outputs
+        #[clap(long, conflicts_with = "dry_run")]
+        apply: bool,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -368,6 +362,29 @@ mod tests {
             }
             other => panic!("unexpected command: {other:?}"),
         }
+    }
+
+    #[test]
+    fn parses_prune_outputs_apply_command() {
+        let cmd = Cmd::try_parse_from(["slide-flow", "prune", "outputs", "--apply"]).unwrap();
+
+        match cmd.subcommand {
+            SubCommands::Prune {
+                command: PruneCommands::Outputs { dry_run, apply },
+            } => {
+                assert!(!dry_run);
+                assert!(apply);
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn rejects_prune_outputs_apply_and_dry_run() {
+        let err = Cmd::try_parse_from(["slide-flow", "prune", "outputs", "--apply", "--dry-run"])
+            .unwrap_err();
+
+        assert_eq!(err.kind(), clap::error::ErrorKind::ArgumentConflict);
     }
 
     #[test]

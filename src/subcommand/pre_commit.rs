@@ -1,6 +1,6 @@
 //! project refresh and output cleanup helpers
 
-use std::{collections::HashSet, fs};
+use std::{collections::HashSet, fs, path::PathBuf};
 
 use askama::Template;
 
@@ -45,38 +45,41 @@ pub fn refresh_project_files(project: &Project) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// remove stale generated outputs
+/// prune stale generated outputs
 ///
 /// **input**
 /// - `project`: project information
-pub fn clean_stale_outputs(project: &Project, dry_run: bool) -> anyhow::Result<()> {
+pub fn prune_stale_outputs(project: &Project, apply: bool) -> anyhow::Result<()> {
     let remove_files = stale_output_files(project)?;
 
     for file in remove_files {
-        if dry_run {
-            println!("Would remove: {}", file.to_string_lossy());
-            continue;
-        }
+        if apply {
+            let remove_result = if file.is_dir() {
+                fs::remove_dir_all(&file)
+            } else {
+                fs::remove_file(&file)
+            };
 
-        let remove_result = if file.is_dir() {
-            fs::remove_dir_all(&file)
+            match remove_result {
+                Ok(_) => println!("Removed: {}", file.to_string_lossy()),
+                Err(e) => log::error!("failed to remove: {}, error: {}", file.to_string_lossy(), e),
+            }
         } else {
-            fs::remove_file(&file)
-        };
-
-        match remove_result {
-            Ok(_) => log::info!("remove: {}", file.to_string_lossy()),
-            Err(e) => log::error!("failed to remove: {}, error: {}", file.to_string_lossy(), e),
+            println!("Would remove: {}", file.to_string_lossy());
         }
     }
 
     Ok(())
 }
 
-fn stale_output_files(project: &Project) -> anyhow::Result<Vec<std::path::PathBuf>> {
+pub fn stale_output_files(project: &Project) -> anyhow::Result<Vec<PathBuf>> {
     // files/directories not to be removed from output root
     let mut retained_files: HashSet<String> = HashSet::new();
     retained_files.insert("index.html".to_string());
+    // `<output_dir>/images/optimized` is public output referenced by generated HTML,
+    // not disposable internal cache. Keep the whole public images tree unless a
+    // future pruner understands asset references precisely.
+    retained_files.insert("images".to_string());
 
     for slide in &project.slides {
         if slide.conf.draft.unwrap_or(false) {
@@ -127,4 +130,65 @@ fn stale_output_files(project: &Project) -> anyhow::Result<Vec<std::path::PathBu
         .collect::<Vec<_>>();
 
     Ok(remove_files)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        config::SlideType,
+        project::Project,
+        subcommand::{add::add, init::init},
+    };
+
+    use super::{prune_stale_outputs, stale_output_files};
+
+    #[test]
+    fn stale_output_files_retains_public_optimized_images() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+
+        init(root).unwrap();
+        let project = Project::get(root.to_path_buf()).unwrap();
+        add(&project, "intro".to_string(), false, false, SlideType::Marp).unwrap();
+
+        let output_images = root.join("output").join("images").join("optimized");
+        std::fs::create_dir_all(&output_images).unwrap();
+        std::fs::write(output_images.join("example.png"), "fake").unwrap();
+        std::fs::write(root.join("output").join("stale.html"), "").unwrap();
+
+        let project = Project::get(root.to_path_buf()).unwrap();
+        let stale = stale_output_files(&project).unwrap();
+
+        assert!(stale.iter().any(|path| path.ends_with("stale.html")));
+        assert!(!stale.iter().any(|path| path.ends_with("images")));
+        assert!(!stale
+            .iter()
+            .any(|path| path.ends_with("images/optimized/example.png")));
+    }
+
+    #[test]
+    fn prune_outputs_apply_retains_public_optimized_images() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+
+        init(root).unwrap();
+        let project = Project::get(root.to_path_buf()).unwrap();
+        add(&project, "intro".to_string(), false, false, SlideType::Marp).unwrap();
+
+        let optimized_image = root
+            .join("output")
+            .join("images")
+            .join("optimized")
+            .join("example.png");
+        std::fs::create_dir_all(optimized_image.parent().unwrap()).unwrap();
+        std::fs::write(&optimized_image, "fake").unwrap();
+        let stale_file = root.join("output").join("stale.html");
+        std::fs::write(&stale_file, "").unwrap();
+
+        let project = Project::get(root.to_path_buf()).unwrap();
+        prune_stale_outputs(&project, true).unwrap();
+
+        assert!(optimized_image.exists());
+        assert!(!stale_file.exists());
+    }
 }

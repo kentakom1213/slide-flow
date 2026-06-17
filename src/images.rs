@@ -6,7 +6,7 @@ use std::{
     process::Command,
 };
 
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, bail, Context};
 use regex::{Captures, Regex};
 
 use crate::{
@@ -110,6 +110,17 @@ pub fn prepare_optimized_markdown(
 
 pub fn clean_image_cache(project: &Project) -> anyhow::Result<PathBuf> {
     let cache_dir = project.root_dir.join(&project.conf.images.cache_dir);
+    let public_images_dir = project
+        .root_dir
+        .join(&project.conf.output_dir)
+        .join("images");
+
+    if cache_dir == public_images_dir || cache_dir.starts_with(&public_images_dir) {
+        bail!(
+            "refusing to remove public image output directory as cache: {}",
+            cache_dir.to_string_lossy()
+        );
+    }
 
     if cache_dir.exists() {
         fs::remove_dir_all(&cache_dir)?;
@@ -429,4 +440,48 @@ fn display_path(project: &Project, path: &Path) -> String {
         .unwrap_or(path)
         .to_string_lossy()
         .to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        config::{ImagesConf, ProjectConf},
+        project::Project,
+    };
+
+    use super::clean_image_cache;
+
+    #[test]
+    fn clean_image_cache_refuses_public_optimized_images() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        let public_image = root
+            .join("output")
+            .join("images")
+            .join("optimized")
+            .join("example.png");
+        std::fs::create_dir_all(public_image.parent().unwrap()).unwrap();
+        std::fs::write(&public_image, "fake").unwrap();
+
+        let conf = ProjectConf {
+            output_dir: "output".to_string(),
+            images: ImagesConf {
+                cache_dir: "output/images/optimized".to_string(),
+                ..ImagesConf::default()
+            },
+            ..ProjectConf::default()
+        };
+        let project = Project {
+            root_dir: root.to_path_buf(),
+            conf,
+            slides: vec![],
+        };
+
+        let error = clean_image_cache(&project).unwrap_err();
+
+        assert!(error
+            .to_string()
+            .contains("refusing to remove public image output directory"));
+        assert!(public_image.exists());
+    }
 }
