@@ -132,7 +132,8 @@ mod test_template {
         ];
         let template = IndexTemplate { slides: &slides };
 
-        eprintln!("{}", template.render().unwrap());
+        let result = template.render().expect("Failed to format");
+        eprintln!("{result}");
     }
 
     #[test]
@@ -207,6 +208,16 @@ mod test_template {
             slides: &slides,
         };
 
-        eprintln!("{}", template.render().unwrap());
+        let result = template.render().expect("Failed to format");
+        assert!(result.contains("# slides
+
+[Slides List](https://test.dev/slides/)
+
+| Title | Slide | PDF | Description |
+| :---- | :---: | :-: | :---------- |
+| title1 |  [Slide](https://test.dev/slides/title1)  | [PDF](https://test.dev/slides/title1.pdf),[v1](https://test.dev/slides/title1_v1.pdf) |  |
+| title2 |  -  | [PDF](https://test.dev/slides/uuid.pdf),[v1](https://test.dev/slides/uuid_v1.pdf) |  |
+| title3 | - | - |  |
+| title4 |  [Slide](https://test.dev/slides/title4)  | [PDF](https://test.dev/slides/title4.pdf),[v1](https://test.dev/slides/title4_v1.pdf) | タイトル4 |"));
     }
 }
