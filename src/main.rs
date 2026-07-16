@@ -178,7 +178,7 @@ fn runner() -> anyhow::Result<()> {
             } => add(
                 &project,
                 name,
-                secret && !public,
+                secret || !public,
                 draft,
                 type_.unwrap_or_default(),
             ),
@@ -327,6 +327,7 @@ fn prepare(project: &Project, slides: &[SlideData], options: PrepareOptions) -> 
         print_planned_step(options.toc, "toc");
         print_planned_step(options.bib, "bib");
         print_planned_step(options.build, "build");
+        print_planned_step(options.build, "prune stale outputs");
         return Ok(());
     }
 
@@ -341,6 +342,7 @@ fn prepare(project: &Project, slides: &[SlideData], options: PrepareOptions) -> 
     }
     if options.build {
         build_slides(project, slides, options.concurrent, options.optimize_images);
+        prune_stale_outputs(project, true)?;
     }
 
     Ok(())

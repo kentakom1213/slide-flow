@@ -106,10 +106,16 @@ slide-flow migrate apply <DIR> --remove-legacy-artifacts
 
 ## Creating Slides
 
-Create a Marp slide:
+Create a secret Marp slide:
 
 ```bash
 slide-flow slide add my-first-slide
+```
+
+Create a public slide:
+
+```bash
+slide-flow slide add public-talk --public
 ```
 
 Create a draft:
@@ -191,7 +197,7 @@ Run the standard publish preparation pipeline:
 slide-flow prepare
 ```
 
-By default, `prepare` targets changed slides and runs project refresh, table of contents updates, bibliography updates, and builds. It does not prune stale outputs. Preview the selected targets and planned steps:
+By default, `prepare` targets changed slides and runs project refresh, table of contents updates, bibliography updates, builds, and stale output pruning. Preview the selected targets and planned steps:
 
 ```bash
 slide-flow prepare --dry-run
@@ -206,7 +212,7 @@ slide-flow build --changed --concurrent 4
 git add docs README.md src
 ```
 
-Stale output pruning is destructive and must be explicit. It defaults to dry-run unless `--apply` is passed:
+Stale output pruning can also be run explicitly. It defaults to dry-run unless `--apply` is passed:
 
 ```bash
 slide-flow prune outputs --dry-run

@@ -17,6 +17,7 @@ pub struct PublishedSlide {
     pub is_marp: bool,
     pub public: bool,
     pub slide_path: String,
+    pub version_slide_paths: Vec<String>,
     pub pdf_path: String,
     pub version_pdf_paths: Vec<String>,
 }
