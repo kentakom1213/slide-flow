@@ -29,7 +29,7 @@ pub fn add(
     // create images directory
     let images_dir = slides_dir.join("images");
     fs::create_dir(&images_dir)?;
-    fs::write(images_dir.join(".gitkeep"), "")?;
+    fs::write(images_dir.join(".gitignore"), "")?;
 
     // make slide file
     let slide_path = slides_dir.join(type_.file_name());

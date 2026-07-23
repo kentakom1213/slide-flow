@@ -45,7 +45,7 @@ pub fn bump(project: &Project, dir: PathBuf) -> anyhow::Result<()> {
     }
 
     fs::create_dir_all(&images_dir)?;
-    fs::write(images_dir.join(".gitkeep"), "")?;
+    fs::write(images_dir.join(".gitignore"), "")?;
 
     if slide.conf.type_.is_marp() {
         fs::write(slide.dir.join("slide.md"), &project.conf.template.slide)?
@@ -135,13 +135,13 @@ mod tests {
             "# before bump"
         );
         assert!(root.join("src/intro/v1/slide.toml").exists());
-        assert!(root.join("src/intro/v1/images/.gitkeep").exists());
+        assert!(root.join("src/intro/v1/images/.gitignore").exists());
 
         let conf: crate::config::SlideConf =
             toml::from_str(&std::fs::read_to_string(root.join("src/intro/slide.toml")).unwrap())
                 .unwrap();
         assert_eq!(conf.version, 2);
-        assert!(root.join("src/intro/images/.gitkeep").exists());
+        assert!(root.join("src/intro/images/.gitignore").exists());
     }
 
     #[test]

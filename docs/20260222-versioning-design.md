@@ -214,7 +214,7 @@ slide-flow version bump --dir src/<slide>
 - 検証成功後、元ファイルを削除
 
 5. 新版作業ディレクトリの再作成
-- `images/` を再作成し `.gitkeep` を配置
+- `images/` を再作成し `.gitignore` を配置
 - スライド本体を `project.conf.template.slide` から再作成（Marp）
 - Ipe の場合は空の `slide.ipe` を作るか、未作成として明示エラーにするかを実装時に統一
 
